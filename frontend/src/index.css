@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  /* Indica al navegador el esquema de color nativo */
+  :root {
+    color-scheme: light; /* Controles nativos claros por defecto */
+  }
+
+  :root.dark {
+    color-scheme: dark; 
+  }
+
+  /* Refina el Autofill para que coincida EXACTO con el diseño */
+  
+  /* MODO OSCURO */
+  :root.dark input:-webkit-autofill,
+  :root.dark textarea:-webkit-autofill {
+    /* Usa el color de slate-900 (#0f172a) para tapar el fondo nativo */
+    -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+    -webkit-text-fill-color: white !important;
+    caret-color: white;
+  }
+
+  /* MODO CLARO */
+  input:-webkit-autofill,
+  textarea:-webkit-autofill {
+    /* Usa blanco para tapar el fondo azul pálido nativo */
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #111827;
+  }
+}
