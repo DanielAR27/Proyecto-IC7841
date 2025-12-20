@@ -1,17 +1,27 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import AdminRoute from './components/AdminRoute';
+
+// Páginas de Autenticación
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import HomePage from './pages/home/HomePage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import UpdatePasswordPage from './pages/auth/UpdatePasswordPage';
+
+// Páginas de Usuario y General
+import HomePage from './pages/home/HomePage';
 import ProfilePage from './pages/user/ProfilePage';
-import CategoriasPage from './pages/admin/CategoriasPage';
-import CrearCategoriaPage from './pages/admin/CrearCategoriaPage';
-import EditarCategoriaPage from './pages/admin/EditarCategoriaPage';
+
+// Páginas de Administración
+import CategoriasPage from './pages/admin/categorias/CategoriasPage';
+import CrearCategoriaPage from './pages/admin/categorias/CrearCategoriaPage';
+import EditarCategoriaPage from './pages/admin/categorias/EditarCategoriaPage';
+import ProductosPage from './pages/admin/productos/ProductosPage';
+import CrearProductoPage from './pages/admin/productos/CrearProductoPage';
+import EditarProductoPage from './pages/admin/productos/EditarProductoPage';
 
 /**
- * Componente para proteger rutas privadas.
+ * Componente para la protección de rutas privadas generales.
  */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -19,7 +29,7 @@ const ProtectedRoute = ({ children }) => {
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-biskoto"></div>
       </div>
     );
   }
@@ -33,7 +43,7 @@ function App() {
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-biskoto"></div>
       </div>
     );
   }
@@ -42,74 +52,26 @@ function App() {
     <Router>
       <Routes>
         {/* Rutas Públicas */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/home" /> : <LoginPage />} 
-        />
+        <Route path="/login" element={user ? <Navigate to="/home" /> : <LoginPage />} />
+        <Route path="/registro" element={user ? <Navigate to="/home" /> : <RegisterPage/>} />
+        <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
+        <Route path="/actualizar-password" element={<UpdatePasswordPage />} />
 
-        <Route 
-          path="/registro" 
-          element={user ? <Navigate to="/home" /> : <RegisterPage/>} 
-        />
-        
-        <Route
-          path="/recuperar-password"
-          element={<ForgotPasswordPage />}
-        />
+        {/* Rutas Privadas de Usuario */}
+        <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-        <Route
-          path="/actualizar-password"
-          element={<UpdatePasswordPage />} 
-        />
+        {/* Rutas de Administración Protegidas por AdminRoute */}
+        <Route element={<AdminRoute />}>
+            <Route path="/admin/categorias" element={<CategoriasPage />} />
+            <Route path="/admin/categorias/nueva" element={<CrearCategoriaPage />} />
+            <Route path="/admin/categorias/editar/:id" element={<EditarCategoriaPage />} />
+            <Route path="/admin/productos" element={<ProductosPage />} />
+            <Route path="/admin/productos/nuevo" element={<CrearProductoPage />} />
+            <Route path="/admin/productos/editar/:id" element={<EditarProductoPage />} />
+        </Route>
 
-        {/* Rutas Privadas */}
-        <Route 
-          path="/home" 
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          } 
-        />
-
-        <Route 
-          path="/perfil" 
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* Rutas de Administración */}
-        <Route 
-          path="/admin/categorias" 
-          element={
-            <ProtectedRoute>
-              <CategoriasPage />
-            </ProtectedRoute>
-          } 
-        />
-
-        <Route 
-          path="/admin/categorias/nueva" 
-          element={
-            <ProtectedRoute>
-              <CrearCategoriaPage />
-            </ProtectedRoute>
-          } 
-        />
-
-        <Route 
-          path="/admin/categorias/editar/:id" 
-          element={
-            <ProtectedRoute>
-              <EditarCategoriaPage />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* Redirecciones */}
+        {/* Gestión de redirecciones predeterminadas */}
         <Route path="/" element={<Navigate to="/home" />} />
         <Route path="*" element={<Navigate to="/home" />} />
       </Routes>

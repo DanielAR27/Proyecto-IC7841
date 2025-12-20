@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import * as categoriaService from '../../api/categoriaService';
+import Navbar from '../../../components/Navbar';
+import * as categoriaService from '../../../api/categoriaService';
 import { 
   Plus, Search, Pencil, Trash2, Package, 
   Loader2, CheckCircle2, X, AlertTriangle 
@@ -10,36 +10,40 @@ import {
 const CategoriasPage = () => {
   const location = useLocation();
   
-  // Estado de datos y búsqueda
+  // Estado para almacenar el listado de categorías y el término de búsqueda
   const [categorias, setCategorias] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Estados de UI
+  // Estados para controlar la interfaz de usuario (Carga, Errores y Notificaciones)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  // Si es null = Modal cerrado. Si tiene objeto = Modal abierto con esa categoría.
+  // Estados para controlar el Modal de Eliminación
   const [categoryToDelete, setCategoryToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false); // Spinner del botón eliminar
+  const [isDeleting, setIsDeleting] = useState(false); 
 
+  // Carga inicial de datos al montar el componente
   useEffect(() => {
     cargarCategorias();
   }, []);
 
+  // Detecta mensajes de éxito provenientes de otras rutas (ej. creación/edición)
   useEffect(() => {
     if (location.state?.successMessage) {
       showNotification('success', location.state.successMessage);
+      // Limpia el estado del historial para evitar mostrar el mensaje al recargar
       window.history.replaceState({}, document.title);
     }
   }, [location]);
 
-  // Helper para mostrar notificaciones y auto-ocultarlas
+  // Función auxiliar para mostrar notificaciones temporales
   const showNotification = (type, text) => {
     setNotification({ type, text });
     setTimeout(() => setNotification(null), 5000);
   };
 
+  // Obtiene el listado de categorías desde el servicio
   const cargarCategorias = async () => {
     try {
       setLoading(true);
@@ -53,35 +57,36 @@ const CategoriasPage = () => {
     }
   };
 
-  // 1. Abrir el Modal (Al dar click al tacho)
+  // Abre el modal de confirmación estableciendo la categoría a eliminar
   const handleDeleteClick = (categoria) => {
     setCategoryToDelete(categoria);
   };
 
-  // 2. Confirmar Eliminación (Al dar click en "Sí, eliminar")
+  // Ejecuta la eliminación de la categoría tras la confirmación del usuario
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
     
     setIsDeleting(true);
     try {
-      // Llamada al backend
+      // Solicita la eliminación al backend
       await categoriaService.deleteCategoria(categoryToDelete.id);
       
-      // Actualiza la tabla localmente (sin recargar todo)
+      // Actualiza el estado local filtrando la categoría eliminada
       setCategorias(prev => prev.filter(cat => cat.id !== categoryToDelete.id));
       
       showNotification('success', `La categoría "${categoryToDelete.nombre}" ha sido eliminada.`);
-      setCategoryToDelete(null); // Cerrar modal
+      setCategoryToDelete(null); 
     } catch (err) {
-      // Si falla (ej. tiene productos y la BD no deja borrar), muestra error
+      // Maneja errores de eliminación (ej. restricciones de clave foránea)
       const msg = err.response?.data?.error || 'No se pudo eliminar la categoría.';
       showNotification('error', msg);
-      setCategoryToDelete(null); // Cierra modal aunque falle, para ver el toast
+      setCategoryToDelete(null); 
     } finally {
       setIsDeleting(false);
     }
   };
 
+  // Filtra las categorías en tiempo real según el término de búsqueda
   const categoriasFiltradas = categorias.filter((cat) => 
     cat.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -92,11 +97,12 @@ const CategoriasPage = () => {
 
       <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         
-        {/* Encabezado */}
+        {/* Encabezado de la Sección */}
         <div className="md:flex md:items-center md:justify-between mb-8">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:text-3xl flex items-center gap-2">
-              <Package className="h-8 w-8 text-orange-500" />
+              {/* Icono actualizado a marca/blanco */}
+              <Package className="h-8 w-8 text-biskoto dark:text-white" />
               Gestión de Categorías
             </h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -106,7 +112,8 @@ const CategoriasPage = () => {
           <div className="mt-4 flex md:mt-0 md:ml-4">
             <Link
               to="/admin/categorias/nueva"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
+              // Botón principal actualizado a Biskoto
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-biskoto hover:bg-biskoto-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-biskoto transition-colors"
             >
               <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
               Nueva Categoría
@@ -114,7 +121,7 @@ const CategoriasPage = () => {
           </div>
         </div>
 
-        {/* Notificación (Toast) */}
+        {/* Componente de Notificación (Toast) */}
         {notification && (
           <div className={`mb-6 p-4 rounded-xl border flex items-center justify-between shadow-sm animate-in slide-in-from-top-2 fade-in duration-300 ${
             notification.type === 'success' 
@@ -134,7 +141,7 @@ const CategoriasPage = () => {
           </div>
         )}
 
-        {/* Buscador */}
+        {/* Barra de Búsqueda y Filtrado */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-t-xl border-b border-gray-200 dark:border-slate-700 flex items-center justify-between shadow-sm transition-colors duration-300">
           <div className="relative max-w-xs w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -144,7 +151,8 @@ const CategoriasPage = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition duration-150 ease-in-out"
+              // Focus ring actualizado a Biskoto
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-biskoto focus:border-biskoto sm:text-sm transition duration-150 ease-in-out"
               placeholder="Buscar categoría..."
             />
           </div>
@@ -153,7 +161,7 @@ const CategoriasPage = () => {
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Tabla de Resultados */}
         <div className="flex flex-col">
           <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -161,7 +169,8 @@ const CategoriasPage = () => {
                 
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-4" />
+                    {/* Loader actualizado a Biskoto */}
+                    <Loader2 className="h-10 w-10 text-biskoto animate-spin mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando catálogo...</p>
                   </div>
                 ) : error ? (
@@ -170,7 +179,11 @@ const CategoriasPage = () => {
                   </div>
                 ) : categoriasFiltradas.length === 0 ? (
                   <div className="p-10 text-center text-gray-500 dark:text-gray-400">
-                    <p>No se encontraron categorías que coincidan con "{searchTerm}".</p>
+                    <p>
+                      {searchTerm 
+                        ? `No se encontraron categorías que coincidan con "${searchTerm}".` 
+                        : "No hay categorías registradas en el inventario."}
+                    </p>
                   </div>
                 ) : (
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
@@ -187,7 +200,8 @@ const CategoriasPage = () => {
                         <tr key={cat.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold uppercase border border-orange-200 dark:border-orange-800">
+                              {/* Avatar Iniciales: Biskoto en Light, Blanco en Dark (UX Corregido) */}
+                              <div className="flex-shrink-0 h-10 w-10 bg-biskoto/10 dark:bg-white/10 rounded-full flex items-center justify-center text-biskoto dark:text-white font-bold uppercase border border-biskoto/20 dark:border-white/20">
                                 {cat.nombre.charAt(0)}
                               </div>
                               <div className="ml-4">
@@ -200,9 +214,10 @@ const CategoriasPage = () => {
                             {cat.descripcion || <span className="italic text-gray-400 dark:text-gray-600">Sin descripción</span>}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
+                            {/* Badge: Biskoto en Light, Texto Blanco en Dark */}
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${
                               (cat.productos?.[0]?.count || 0) > 0 
-                                ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800' 
+                                ? 'bg-biskoto-50 text-biskoto border-biskoto/20 dark:bg-white/10 dark:text-white dark:border-white/30' 
                                 : 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'
                             }`}>
                               {cat.productos?.[0]?.count || 0} items
@@ -210,14 +225,15 @@ const CategoriasPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end gap-2">
+                              {/* Botón Editar: Biskoto en Light, Blanco en Dark */}
                               <Link 
                                 to={`/admin/categorias/editar/${cat.id}`} 
-                                className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50 p-2 rounded-lg transition-colors group border border-transparent dark:border-indigo-900/50"
+                                className="text-biskoto hover:text-biskoto-700 bg-biskoto-50 hover:bg-biskoto/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 p-2 rounded-lg transition-colors group border border-transparent dark:border-white/20"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Link>
                               
-                              {/* BOTÓN ELIMINAR (Abre el modal) */}
+                              {/* Botón Eliminar: Mantiene Rojo (Semántica de Peligro) */}
                               <button 
                                 onClick={() => handleDeleteClick(cat)}
                                 className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 p-2 rounded-lg transition-colors group border border-transparent dark:border-red-900/50">
@@ -257,7 +273,7 @@ const CategoriasPage = () => {
               </p>
 
               <div className="flex items-center justify-center gap-4">
-                {/* Botón NO (Cancelar) - Azul Suave / Gris */}
+                {/* Botón NO (Cancelar) */}
                 <button
                   onClick={() => setCategoryToDelete(null)}
                   className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"

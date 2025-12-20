@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import CategoriaForm from '../../components/admin/CategoriaForm';
-import * as categoriaService from '../../api/categoriaService';
+// Importaciones ajustadas para nivel de profundidad 3 (../../../)
+import Navbar from '../../../components/Navbar';
+import CategoriaForm from '../../../components/admin/CategoriaForm';
+import * as categoriaService from '../../../api/categoriaService';
 import { LayoutGrid, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 
+/**
+ * Página de Edición de Categorías.
+ * Recupera los datos de una categoría existente, gestiona su estado de carga 
+ * y maneja la actualización a través del formulario reutilizable.
+ */
 const EditarCategoriaPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  // Estados para gestionar los datos, la carga, el guardado y los errores
   const [categoria, setCategoria] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // 1. Cargar datos
+  // Efecto para la carga inicial de los datos de la categoría al montar el componente
   useEffect(() => {
     cargarDatos();
   }, [id]);
 
+  // Función asíncrona para obtener la categoría desde el servicio
   const cargarDatos = async () => {
     try {
       setLoading(true);
@@ -33,13 +41,14 @@ const EditarCategoriaPage = () => {
     }
   };
 
-  // 2. Manejar la actualización con mensajes EXPLÍCITOS
+  // Gestiona la actualización de la categoría enviando los datos al backend
   const handleUpdate = async (formData) => {
     setSaving(true);
     setError(null);
     try {
       await categoriaService.updateCategoria(id, formData);
       
+      // Redirige al listado con un mensaje de éxito en el estado de navegación
       navigate('/admin/categorias', {
         state: { successMessage: 'Categoría actualizada correctamente.' }
       });
@@ -47,9 +56,9 @@ const EditarCategoriaPage = () => {
     } catch (err) {
       console.error("Error update:", err);
 
-      let msg = err.response?.data?.error; // Intenta leer el mensaje del backend
+      let msg = err.response?.data?.error; // Intenta extraer el mensaje de error explícito del backend
 
-      // Si el backend no mandó mensaje, se deduce por el código de estado
+      // Si no hay mensaje explícito, deduce el tipo de error basándose en el código de estado
       if (!msg) {
         if (err.response?.status === 409) {
           msg = 'Ya existe otra categoría con este nombre. Intenta con uno diferente.';
@@ -60,6 +69,7 @@ const EditarCategoriaPage = () => {
         }
       }
       
+      // Establece el mensaje de error para que sea mostrado por el formulario o la UI
       setError(msg); 
     } finally {
       setSaving(false);
@@ -72,7 +82,7 @@ const EditarCategoriaPage = () => {
 
       <main className="max-w-3xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         
-        {/* Encabezado */}
+        {/* Encabezado con navegación de retorno */}
         <div className="mb-8">
           <Link 
             to="/admin/categorias" 
@@ -82,18 +92,22 @@ const EditarCategoriaPage = () => {
             Volver al listado
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <LayoutGrid className="h-6 w-6 text-orange-500" />
+            {/* Icono actualizado: Marca en Light, Blanco en Dark */}
+            <LayoutGrid className="h-6 w-6 text-biskoto dark:text-white" />
             Editar Categoría
           </h1>
         </div>
 
-        {/* CONTENIDO PRINCIPAL */}
+        {/* Lógica de renderizado condicional según el estado de la aplicación */}
         {loading ? (
+          // Estado de Carga
           <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-4" />
+            {/* Loader actualizado a color de marca */}
+            <Loader2 className="h-10 w-10 text-biskoto animate-spin mb-4" />
             <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando datos...</p>
           </div>
         ) : error && !categoria ? (
+          // Estado de Error Crítico (si falla la carga inicial)
           <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-red-100 dark:border-red-900/50">
             <div className="inline-flex p-3 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-4">
               <AlertCircle className="h-8 w-8" />
@@ -108,11 +122,12 @@ const EditarCategoriaPage = () => {
             </button>
           </div>
         ) : (
+          // Formulario de Edición
           <CategoriaForm 
             initialData={categoria} 
             onSubmit={handleUpdate} 
             loading={saving}
-            error={error} // El componente Form mostrará este mensaje explícito en rojo
+            error={error} // Pasa el error de actualización al formulario para su visualización
             buttonText="Guardar Cambios"
           />
         )}

@@ -1,32 +1,41 @@
 @import "tailwindcss";
 
+/* Define la configuración del tema y colores personalizados */
+@theme {
+  /* Paleta de colores de la marca Biskoto */
+  --color-biskoto: #2c2bad;
+  --color-biskoto-50: #eef0ff;
+  --color-biskoto-600: #2c2bad;
+  --color-biskoto-700: #222190;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-  /* Indica al navegador el esquema de color nativo */
+  /* Establece el esquema de color nativo para los controles del navegador */
   :root {
-    color-scheme: light; /* Controles nativos claros por defecto */
+    color-scheme: light; 
   }
 
   :root.dark {
     color-scheme: dark; 
   }
 
-  /* Refina el Autofill para que coincida EXACTO con el diseño */
+  /* Ajusta el comportamiento visual del Autofill del navegador */
   
-  /* MODO OSCURO */
+  /* Configuración para Modo Oscuro */
   :root.dark input:-webkit-autofill,
   :root.dark textarea:-webkit-autofill {
-    /* Usa el color de slate-900 (#0f172a) para tapar el fondo nativo */
+    /* Aplica el color slate-900 (#0f172a) para cubrir el fondo nativo */
     -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
     -webkit-text-fill-color: white !important;
     caret-color: white;
   }
 
-  /* MODO CLARO */
+  /* Configuración para Modo Claro */
   input:-webkit-autofill,
   textarea:-webkit-autofill {
-    /* Usa blanco para tapar el fondo azul pálido nativo */
+    /* Aplica el color blanco para cubrir el fondo nativo */
     -webkit-box-shadow: 0 0 0 1000px white inset !important;
     -webkit-text-fill-color: #111827 !important;
     caret-color: #111827;

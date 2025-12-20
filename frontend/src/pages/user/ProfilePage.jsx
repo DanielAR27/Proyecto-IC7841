@@ -1,17 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext'; // Importamos el contexto
+import { useTheme } from '../../context/ThemeContext';
 import Navbar from '../../components/Navbar';
-import { User, Mail, Phone, MapPin, Save, Shield, CheckCircle2, AlertCircle, Moon, Sun } from 'lucide-react';
+import { 
+  User, Mail, Phone, MapPin, Save, Shield, 
+  CheckCircle2, AlertCircle, Moon, Sun 
+} from 'lucide-react';
 
+/**
+ * Página de Perfil de Usuario.
+ * Permite la gestión de datos personales y la configuración de preferencias de tema.
+ */
 const ProfilePage = () => {
   const { user, updateUserProfile } = useAuth();
   
-  // 1. Trae el tema REAL guardado y la función para actualizarlo
+  // Obtiene el tema actual persistido y la función para actualizarlo
   const { theme: savedTheme, setTheme } = useTheme();
 
-  // 2. Crear un estado LOCAL para la previsualización
-  // Inicializa según si el tema guardado es 'dark'
+  // Inicializa el estado local para la previsualización del tema
+  // Esto permite al usuario ver el cambio instantáneamente sin guardar todavía
   const [isDarkPreview, setIsDarkPreview] = useState(savedTheme === 'dark');
 
   const [formData, setFormData] = useState({
@@ -26,7 +33,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Sincronizar formulario con usuario
+  // Sincroniza el estado del formulario cuando la información del usuario está disponible
   useEffect(() => {
     if (user) {
       setFormData({
@@ -40,10 +47,9 @@ const ProfilePage = () => {
     }
   }, [user]);
 
-  // --- LÓGICA DE PREVISUALIZACIÓN (PREVIEW) ---
+  // --- LÓGICA DE PREVISUALIZACIÓN DE TEMA ---
   
-  // Efecto: Cuando cambia el switch local, actualiza el DOM visualmente
-  // PERO NO toca el contexto global todavía.
+  // Aplica visualmente la clase 'dark' al documento HTML cuando cambia el switch local
   useEffect(() => {
     if (isDarkPreview) {
       document.documentElement.classList.add('dark');
@@ -51,8 +57,7 @@ const ProfilePage = () => {
       document.documentElement.classList.remove('dark');
     }
 
-    // Cuando el usuario se vaya de esta página (desmonte el componente),
-    // se fuerza a que la app vuelva al tema GUARDADO (savedTheme), ignorando el preview.
+    // Restaura el tema guardado oficialmente si el componente se desmonta sin guardar cambios
     return () => {
       if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -62,39 +67,50 @@ const ProfilePage = () => {
     };
   }, [isDarkPreview, savedTheme]);
 
-  // Toggle local (Solo visual)
+  // Alterna el estado local del tema (Previsualización)
   const handleTogglePreview = () => {
     setIsDarkPreview(prev => !prev);
   };
 
+  // Maneja los cambios en los inputs del formulario
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Limpia los mensajes de retroalimentación al editar para mejorar la UX
     if (message.text) setMessage({ type: '', text: '' });
   };
 
+  // Procesa el envío del formulario y guarda preferencias
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
 
     try {
+      // Validación local del formato de teléfono
       const telefonoRegex = /^[0-9]{8}$/;
       if (!telefonoRegex.test(formData.telefono)) {
         throw new Error("El teléfono debe tener exactamente 8 números.");
       }
 
-      // 1. Guardar Datos Personales
+      // 1. Actualiza la información del usuario en el backend
       await updateUserProfile(formData);
 
-      // Al dar click en guardar, hace oficial el cambio en el contexto
+      // 2. Persiste la preferencia de tema seleccionada
       setTheme(isDarkPreview ? 'dark' : 'light');
 
       setMessage({ type: 'success', text: 'Datos y preferencias guardados correctamente.' });
+      
+      // Desplaza la vista hacia arriba para mostrar el mensaje de éxito
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
     } catch (error) {
       const errorMsg = error.error || error.message || 'Ocurrió un error al guardar.';
       setMessage({ type: 'error', text: errorMsg });
+      
+      // CORRECCIÓN: Desplaza la vista hacia arriba también cuando hay un error
+      // para asegurar que el usuario vea el banner de notificación.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
     } finally {
       setLoading(false);
     }
@@ -106,6 +122,7 @@ const ProfilePage = () => {
 
       <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         
+        {/* Encabezado de la Sección */}
         <div className="mb-8 text-center md:text-left">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Mi Perfil</h1>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
@@ -113,13 +130,15 @@ const ProfilePage = () => {
           </p>
         </div>
 
+        {/* Tarjeta Principal del Formulario */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors duration-300">
           
+          {/* Banner de Mensajes (Éxito / Error) */}
           {message.text && (
-            <div className={`p-4 flex items-center ${
+            <div className={`p-4 flex items-center animate-in slide-in-from-top-2 duration-300 ${
               message.type === 'success' 
-                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-b dark:border-green-900/50' 
-                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-b dark:border-red-900/50'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-b border-green-100 dark:border-green-900/50' 
+                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-b border-red-100 dark:border-red-900/50'
             }`}>
               {message.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3" /> : <AlertCircle className="w-5 h-5 mr-3" />}
               <span className="font-medium">{message.text}</span>
@@ -129,26 +148,27 @@ const ProfilePage = () => {
           <div className="p-8">
             <form onSubmit={handleSubmit} className="space-y-10">
               
-              {/* SECCIÓN 1: Switch de Previsualización */}
+              {/* SECCIÓN 1: Configuración de Tema (Switch) */}
               <div 
-                onClick={handleTogglePreview} // Usa el toggle local
-                className="bg-blue-50 dark:bg-slate-700/50 p-6 rounded-lg border border-blue-100 dark:border-slate-600 flex items-center justify-between transition-colors duration-300 cursor-pointer group select-none"
+                onClick={handleTogglePreview}
+                className="bg-biskoto-50 dark:bg-slate-700/50 p-6 rounded-lg border border-biskoto/20 dark:border-slate-600 flex items-center justify-between transition-colors duration-300 cursor-pointer group select-none hover:border-biskoto/50"
               >
                 <div className="flex items-center">
-                   <div className={`p-2 rounded-full mr-4 transition-colors ${isDarkPreview ? 'bg-indigo-500 text-white' : 'bg-yellow-400 text-white'}`}>
+                   <div className={`p-2 rounded-full mr-4 transition-colors ${isDarkPreview ? 'bg-biskoto text-white' : 'bg-yellow-400 text-white'}`}>
                      {isDarkPreview ? <Moon size={20} /> : <Sun size={20} />}
                    </div>
                    <div>
-                     <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Modo Oscuro</h3>
+                     <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-biskoto dark:group-hover:text-[#4d4cff] transition-colors">Modo Oscuro</h3>
                      <p className="text-xs text-gray-500 dark:text-gray-300">
                        {isDarkPreview ? 'Activado (Previsualización)' : 'Desactivado'}
                      </p>
                    </div>
                 </div>
 
+                {/* Toggle visual */}
                 <div
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                    isDarkPreview ? 'bg-blue-600' : 'bg-gray-300 dark:bg-slate-600'
+                    isDarkPreview ? 'bg-biskoto' : 'bg-gray-300 dark:bg-slate-600'
                   }`}
                 >
                   <span
@@ -160,8 +180,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* ... RESTO DE SECCIONES (Cuenta, Datos, etc.) IGUAL QUE ANTES ... */}
-              {/* Copia y pega las secciones de Cuenta, Datos Personales y Envío aquí */}
+              {/* SECCIÓN 2: Información de Cuenta (Solo lectura) */}
                <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-lg border border-gray-100 dark:border-slate-700 transition-colors">
                 <h3 className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400 font-bold mb-4 flex items-center">
                   <Shield className="w-4 h-4 mr-2" />
@@ -174,31 +193,33 @@ const ProfilePage = () => {
                   </div>
                    <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
-                    <input type="text" disabled value={formData.rol} className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg px-4 py-2 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none" />
+                    <input type="text" disabled value={formData.rol} className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg px-4 py-2 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none capitalize" />
                   </div>
                 </div>
               </div>
 
+              {/* SECCIÓN 3: Datos Personales */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-100 dark:border-slate-700 pb-2 mb-4 flex items-center">
-                  <User className="w-5 h-5 mr-2 text-blue-600" />
+                  <User className="w-5 h-5 mr-2 text-biskoto" />
                   Datos Personales
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
-                    <input name="nombre" type="text" required value={formData.nombre} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-colors" />
+                    <input name="nombre" type="text" required value={formData.nombre} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-biskoto focus:border-biskoto transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Apellido</label>
-                    <input name="apellido" type="text" required value={formData.apellido} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-colors" />
+                    <input name="apellido" type="text" required value={formData.apellido} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-biskoto focus:border-biskoto transition-colors" />
                   </div>
                 </div>
               </div>
 
+              {/* SECCIÓN 4: Información de Envío */}
                <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-100 dark:border-slate-700 pb-2 mb-4 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  <MapPin className="w-5 h-5 mr-2 text-biskoto" />
                   Información de Envío
                 </h3>
                 <div className="grid grid-cols-1 gap-6">
@@ -208,22 +229,22 @@ const ProfilePage = () => {
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                       </div>
-                      <input name="telefono" type="tel" required value={formData.telefono} onChange={handleChange} className="w-full pl-10 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-colors" />
+                      <input name="telefono" type="tel" required value={formData.telefono} onChange={handleChange} className="w-full pl-10 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-biskoto focus:border-biskoto transition-colors" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección Exacta</label>
-                    <textarea name="direccion" rows="3" value={formData.direccion} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none transition-colors" />
+                    <textarea name="direccion" rows="3" value={formData.direccion} onChange={handleChange} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:ring-2 focus:ring-biskoto focus:border-biskoto resize-none transition-colors" />
                   </div>
                 </div>
               </div>
 
-              {/* Botón Guardar */}
+              {/* Botón de Guardar */}
               <div className="pt-6 border-t border-gray-100 dark:border-slate-700 flex justify-end">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition-all shadow-md active:scale-95 disabled:bg-blue-300 dark:disabled:bg-blue-900/50"
+                  className="flex items-center px-8 py-3 bg-biskoto text-white font-bold rounded-lg hover:bg-biskoto-700 transition-all shadow-md active:scale-95 disabled:bg-indigo-300 dark:disabled:bg-indigo-900/50"
                 >
                   {loading ? 'Guardando...' : (
                     <>

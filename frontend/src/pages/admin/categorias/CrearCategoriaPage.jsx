@@ -1,31 +1,37 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import CategoriaForm from '../../components/admin/CategoriaForm'; 
-import * as categoriaService from '../../api/categoriaService';
+import Navbar from '../../../components/Navbar';
+import CategoriaForm from '../../../components/admin/CategoriaForm'; 
+import * as categoriaService from '../../../api/categoriaService';
 import { LayoutGrid, ArrowLeft } from 'lucide-react';
 
+/**
+ * Página de Creación de Categorías.
+ * Gestiona la interacción para el alta de nuevas categorías utilizando el formulario reutilizable.
+ */
 const CrearCategoriaPage = () => {
   const navigate = useNavigate();
   
+  // Estados para controlar la carga y los errores de la solicitud
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Maneja el proceso de creación recibiendo los datos del formulario hijo
   const handleCreate = async (formData) => {
     setLoading(true);
     setError(null);
 
     try {
-      // 1. Llamada al Backend
+      // Solicita la creación de la categoría al servicio backend
       await categoriaService.createCategoria(formData);
       
-      // 2. Redirección con mensaje de éxito (Banner)
+      // Redirige al listado y envía un mensaje de éxito mediante el estado de navegación
       navigate('/admin/categorias', { 
         state: { successMessage: 'Se ha creado una nueva categoría correctamente.' } 
       });
       
     } catch (err) {
-      // Manejo de errores del backend
+      // Gestiona los errores retornados por la API o excepciones de red
       const msg = err.response?.data?.error || err.message || 'Error al crear la categoría.';
       setError(msg);
     } finally {
@@ -39,7 +45,7 @@ const CrearCategoriaPage = () => {
 
       <main className="max-w-3xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         
-        {/* Encabezado */}
+        {/* Encabezado de la página con navegación de retorno */}
         <div className="mb-8">
           <Link 
             to="/admin/categorias" 
@@ -49,14 +55,13 @@ const CrearCategoriaPage = () => {
             Volver al listado
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <LayoutGrid className="h-6 w-6 text-orange-500" />
+            {/* Icono actualizado: Marca en Light, Blanco en Dark */}
+            <LayoutGrid className="h-6 w-6 text-biskoto dark:text-white" />
             Nueva Categoría
           </h1>
         </div>
 
-        {/* USO DEL COMPONENTE REUTILIZABLE 
-            Nota: No se pasa 'initialData' porque se quiere que empiece vacío.
-        */}
+        {/* Renderiza el formulario reutilizable sin datos iniciales para el modo de creación */}
         <CategoriaForm 
           onSubmit={handleCreate} 
           loading={loading}
