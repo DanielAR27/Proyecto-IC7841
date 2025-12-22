@@ -4,8 +4,9 @@ import api from './axiosConfig';
  * Obtiene el listado de productos para el catálogo público.
  * Incluye la relación completa de imágenes de cada producto.
  */
-export const getProductosCatalogo = async () => {
-  const response = await api.get('/productos');
+export const getProductosCatalogo = async (params = {}) => {
+  // params puede contener { page: 1, limit: 20, search: 'galleta' }
+  const response = await api.get('/productos', { params });
   return response.data;
 };
 

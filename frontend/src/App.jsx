@@ -49,7 +49,7 @@ import CrearCompraPage from './pages/admin/compras/CrearCompraPage';
 import ConsultarCompraPage from './pages/admin/compras/ConsultarCompraPage';
 
 /**
- * Componente para la protección de rutas privadas generales.
+ * Componente para la protección de rutas privadas de usuario (ej: Perfil).
  */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -79,14 +79,16 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Rutas Públicas */}
+        {/* Rutas Públicas de Autenticación (Redirigen a Home si ya hay sesión) */}
         <Route path="/login" element={user ? <Navigate to="/home" /> : <LoginPage />} />
         <Route path="/registro" element={user ? <Navigate to="/home" /> : <RegisterPage/>} />
         <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
         <Route path="/actualizar-password" element={<UpdatePasswordPage />} />
 
-        {/* Rutas Privadas de Usuario */}
-        <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        {/* Ruta Pública Principal (Catálogo visible para todos) */}
+        <Route path="/home" element={<HomePage />} />
+
+        {/* Rutas Privadas de Usuario (Requieren Login) */}
         <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
         {/* Rutas de Administración Protegidas por AdminRoute */}
@@ -94,24 +96,29 @@ function App() {
             <Route path="/admin/categorias" element={<CategoriasPage />} />
             <Route path="/admin/categorias/nueva" element={<CrearCategoriaPage />} />
             <Route path="/admin/categorias/editar/:id" element={<EditarCategoriaPage />} />
+            
             <Route path="/admin/productos" element={<ProductosPage />} />
             <Route path="/admin/productos/nuevo" element={<CrearProductoPage />} />
             <Route path="/admin/productos/editar/:id" element={<EditarProductoPage />} />
+            
             <Route path="/admin/ingredientes" element={<IngredientesPage />} />
             <Route path="/admin/ingredientes/nuevo" element={<CrearIngredientePage />} />
             <Route path="/admin/ingredientes/editar/:id" element={<EditarIngredientePage />} />
+            
             <Route path="/admin/cupones" element={<CuponesPage />} />
             <Route path="/admin/cupones/nuevo" element={<CrearCuponPage />} />
             <Route path="/admin/cupones/editar/:id" element={<EditarCuponPage />} />
+            
             <Route path="/admin/usuarios" element={<UsuariosPage />} />    
             <Route path="/admin/usuarios/editar/:id" element={<EditarUsuarioPage />} />
+            
             <Route path="/admin/proveedores" element={<ProveedoresPage />} />   
             <Route path="/admin/proveedores/nuevo" element={<CrearProveedorPage />} />  
             <Route path="/admin/proveedores/editar/:id" element={<EditarProveedorPage />} /> 
+            
             <Route path="/admin/compras" element={<ComprasPage />} /> 
             <Route path="/admin/compras/nueva" element={<CrearCompraPage />} />  
             <Route path="/admin/compras/:id" element={<ConsultarCompraPage />} />   
-
         </Route>
 
         {/* Gestión de redirecciones predeterminadas */}

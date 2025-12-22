@@ -2,24 +2,44 @@ const supabase = require('../config/supabase');
 
 /**
  * LISTAR PRODUCTOS CATÁLOGO (Con imágenes)
- * Endpoint para la vista de cliente. Trae cada producto con su array 
- * de imágenes asociadas desde la tabla producto_imagenes.
+ * Endpoint para la vista de cliente. Soporta paginación y BÚSQUEDA.
  */
 const listarProductosCatalogo = async (req, res) => {
   try {
-    // Realizamos un join con la tabla producto_imagenes
-    const { data, error } = await supabase
+    // 1. Extraemos 'search' además de page y limit
+    const { page = 1, limit = 20, search = '' } = req.query;
+    const desde = (page - 1) * limit;
+    const hasta = desde + limit - 1;
+
+    // 2. Iniciamos la consulta base
+    let query = supabase
       .from('productos')
       .select(`
         *,
         categorias ( id, nombre ),
-        producto_imagenes ( id, url, es_principal, orden )
-      `)
-      .order('nombre', { ascending: true });
+        producto_imagenes ( id, url, es_principal )
+      `, { count: 'exact' }); // count: 'exact' nos dará el total filtrado
+
+    // 3. APLICAMOS EL FILTRO SI EXISTE BÚSQUEDA
+    if (search) {
+      // Usamos ilike para búsqueda insensible a mayúsculas/minúsculas
+      // Buscamos coincidencia parcial (%) en el nombre
+      query = query.ilike('nombre', `%${search}%`);
+    }
+
+    // 4. Aplicamos ordenamiento y paginación al final
+    const { data, error, count } = await query
+      .order('nombre', { ascending: true })
+      .range(desde, hasta);
 
     if (error) throw error;
 
-    res.status(200).json(data);
+    res.status(200).json({
+      productos: data,
+      totalItems: count,
+      paginaActual: parseInt(page),
+      totalPaginas: Math.ceil(count / limit)
+    });
   } catch (error) {
     console.error('Error al listar catálogo con imágenes:', error);
     res.status(500).json({ error: 'Error al obtener el catálogo completo.' });

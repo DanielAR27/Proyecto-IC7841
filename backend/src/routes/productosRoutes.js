@@ -9,7 +9,7 @@ const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
  * Obtiene el catálogo completo con imágenes asociadas.
  * Se utiliza para la vista principal de compras del cliente.
  */
-router.get('/', verifyToken, productoController.listarProductosCatalogo);
+router.get('/', productoController.listarProductosCatalogo);
 
 /**
  * Obtiene el detalle de un producto específico por su ID.

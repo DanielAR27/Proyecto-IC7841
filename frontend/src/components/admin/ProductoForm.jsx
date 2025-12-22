@@ -260,7 +260,7 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
           <div className="md:col-span-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"> <Database size={16} /> Stock Actual para Venta
             </label>
-            <input name="stock_actual" type="number" min="0" placeholder="0" value={formData.stock_actual} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all font-mono" 
+            <input name="stock_actual" type="number" min="0" placeholder="0" value={formData.stock_actual} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" 
             />
           </div>
 
@@ -271,7 +271,7 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
         </div>
 
         {/* SECCIÓN: FICHA TÉCNICA (RECETA) */}
-        <div className="pt-8 pb-40 border-t border-gray-100 dark:border-slate-700">
+        <div className="pt-8 pb-6 border-t border-gray-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <ChefHat className="text-biskoto" size={24} /> Ficha Técnica / Receta
@@ -329,7 +329,7 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
         </div>
 
         {/* BOTONES DE ACCIÓN */}
-        <div className="flex flex-col md:flex-row justify-end gap-4 pt-10 border-t border-gray-100 dark:border-slate-700">
+        <div className="flex flex-col md:flex-row justify-end gap-4 pt-4 border-t border-gray-100 dark:border-slate-700">
           <Link to="/admin/productos" className="px-10 py-3.5 text-center text-gray-500 dark:text-gray-400 font-bold hover:text-gray-700 transition-colors order-2 md:order-1 uppercase text-xs tracking-widest">Cancelar</Link>
           <button type="submit" disabled={uploading || submitting} className="bg-biskoto text-white px-12 py-3.5 rounded-xl font-black hover:bg-biskoto-700 disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-biskoto/20 transition-all hover:-translate-y-1 active:translate-y-0 order-1 md:order-2 uppercase text-xs tracking-widest">
             {(uploading || submitting) ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
