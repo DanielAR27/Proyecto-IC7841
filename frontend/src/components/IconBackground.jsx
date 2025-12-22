@@ -5,7 +5,7 @@ import {
 
 /**
  * Componente que genera un fondo decorativo con un patrón de íconos simétrico.
- * Utiliza CSS Grid para ordenar los elementos y un iterador para poblarlos.
+ * Ahora soporta MODO OSCURO (Dark Mode).
  */
 const IconBackground = ({ children }) => {
   // Repertorio ampliado de íconos disponibles
@@ -26,33 +26,26 @@ const IconBackground = ({ children }) => {
   const totalIcons = columns * rows;
 
   /**
-   * Se genera dinámicamente el arreglo de íconos basado en la cantidad total deseada.
-   * Se utiliza el operador módulo (%) para ciclar a través del repertorio de íconos y rotaciones,
-   * asegurando variedad y simetría.
+   * Generación dinámica de íconos
    */
   const generatedIcons = Array.from({ length: totalIcons }).map((_, index) => {
-    // Selección cíclica del ícono
     const IconComponent = iconPool[index % iconPool.length];
-    
-    // Selección cíclica de la rotación, desfasada para evitar patrones repetitivos verticales
     const rotationClass = rotations[(index + Math.floor(index / columns)) % rotations.length];
-
     return { Icon: IconComponent, rotation: rotationClass };
   });
 
   return (
-    <div className="relative min-h-screen w-full bg-gray-50 overflow-hidden">
-      {/* Capa de fondo Grid:
-        - Se define una cuadrícula de 6 columnas y 6 filas.
-        - justify-items-center y items-center centran cada ícono en su celda.
-        - opacity-[0.04] reduce ligeramente la opacidad para compensar la mayor densidad.
-      */}
-      <div className="absolute inset-0 pointer-events-none select-none opacity-[0.04] grid grid-cols-6 grid-rows-6 justify-items-center items-center p-8">
+    // CAMBIO 1: Agregado 'dark:bg-slate-950' y 'transition-colors' para suavizar el cambio
+    <div className="relative min-h-screen w-full bg-gray-50 dark:bg-slate-950 transition-colors duration-300 overflow-hidden">
+      
+      {/* Capa de fondo Grid */}
+      <div className="absolute inset-0 pointer-events-none select-none opacity-[0.04] dark:opacity-[0.05] grid grid-cols-6 grid-rows-6 justify-items-center items-center p-8">
         {generatedIcons.map(({ Icon, rotation }, index) => (
           <Icon
             key={index}
-            // Se reduce ligeramente el tamaño (w-12 h-12) para evitar saturación
-            className={`w-12 h-12 text-gray-900 ${rotation} transition-transform duration-300 hover:scale-110 hover:text-blue-900/20`}
+            // CAMBIO 2: Los íconos ahora son blancos en modo oscuro (dark:text-white)
+            // CAMBIO 3: El hover también se adapta (dark:hover:text-blue-300/20)
+            className={`w-12 h-12 text-gray-900 dark:text-white ${rotation} transition-transform duration-300 hover:scale-110 hover:text-blue-900/20 dark:hover:text-blue-300/20`}
           />
         ))}
       </div>

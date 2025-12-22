@@ -2,10 +2,16 @@ import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import Navbar from '../../../components/Navbar';
 import * as productoService from '../../../api/productoService';
-import { 
-  Plus, Search, Pencil, Trash2, Package, 
-  Loader2, CheckCircle2, X, AlertTriangle 
-} from 'lucide-react';
+
+// Importación de componentes reutilizables para estandarizar la UI
+import ToastNotification from '../../../components/ToastNotification';
+import ConfirmModal from '../../../components/ConfirmModal';
+import TableSearch from '../../../components/TableSearch';
+import StatusBadge from '../../../components/StatusBadge';
+import TableActions from '../../../components/TableActions';
+
+// Iconos específicos requeridos para la cabecera y estados de carga
+import { Plus, Package, Loader2 } from 'lucide-react';
 
 /**
  * Página de Gestión de Productos.
@@ -72,16 +78,12 @@ const ProductosPage = () => {
     
     setIsDeleting(true);
     try {
-      // Solicita la eliminación al backend
       await productoService.deleteProducto(productToDelete.id);
       
-      // Actualiza el estado local filtrando el producto eliminado
       setProductos(prev => prev.filter(p => p.id !== productToDelete.id));
-      
       showNotification('success', `El producto "${productToDelete.nombre}" ha sido eliminado.`);
       setProductToDelete(null); 
     } catch (err) {
-      // Maneja errores de eliminación
       const msg = err.response?.data?.error || 'No se pudo eliminar el producto.';
       showNotification('error', msg);
       setProductToDelete(null); 
@@ -101,6 +103,13 @@ const ProductosPage = () => {
     return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(amount);
   };
 
+  // Determina la variante de color para el badge de stock
+  const getStockVariant = (stock) => {
+    if (stock > 10) return 'success'; // Verde
+    if (stock > 0) return 'warning';  // Amarillo
+    return 'error';                   // Rojo
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors duration-300 relative">
       <Navbar />
@@ -108,7 +117,7 @@ const ProductosPage = () => {
       <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         
         {/* Encabezado de la Sección */}
-        <div className="md:flex md:items-center md:justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:text-3xl flex items-center gap-2">
               <Package className="h-8 w-8 text-biskoto dark:text-white" />
@@ -131,42 +140,20 @@ const ProductosPage = () => {
 
         {/* Componente de Notificación (Toast) */}
         {notification && (
-          <div className={`mb-6 p-4 rounded-xl border flex items-center justify-between shadow-sm animate-in slide-in-from-top-2 fade-in duration-300 ${
-            notification.type === 'success' 
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900 text-green-800 dark:text-green-300' 
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900 text-red-800 dark:text-red-300'
-          }`}>
-            <div className="flex items-center">
-              {notification.type === 'success' ? <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0" /> : <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0" />}
-              <span className="font-medium text-sm">{notification.text}</span>
-            </div>
-            <button 
-              onClick={() => setNotification(null)} 
-              className="ml-4 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          <ToastNotification 
+            type={notification.type} 
+            message={notification.text} 
+            onClose={() => setNotification(null)} 
+          />
         )}
 
         {/* Barra de Búsqueda y Filtrado */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-t-xl border-b border-gray-200 dark:border-slate-700 flex items-center justify-between shadow-sm transition-colors duration-300">
-          <div className="relative max-w-xs w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-biskoto focus:border-biskoto sm:text-sm transition duration-150 ease-in-out"
-              placeholder="Buscar por nombre o categoría..."
-            />
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Mostrando <span className="font-medium text-gray-900 dark:text-white">{productosFiltrados.length}</span> resultados
-          </div>
-        </div>
+        <TableSearch 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm} 
+          resultCount={productosFiltrados.length}
+          placeholder="Buscar por nombre o categoría..."
+        />
 
         {/* Tabla de Resultados */}
         <div className="flex flex-col">
@@ -195,60 +182,75 @@ const ProductosPage = () => {
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                     <thead className="bg-gray-50 dark:bg-slate-900/50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Categoría</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Precio</th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+                        {/* Padding reducido en móvil (px-3) */}
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Nombre
+                        </th>
+                        {/* Ocultamos la columna Categoría en pantallas pequeñas */}
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                          Categoría
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Precio
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Stock
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Acciones
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
                       {productosFiltrados.map((prod) => (
                         <tr key={prod.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          
+                          {/* Columna Nombre: Ajuste de padding y Avatar responsivo */}
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-biskoto/10 dark:bg-white/10 rounded-full flex items-center justify-center text-biskoto dark:text-white font-bold uppercase border border-biskoto/20 dark:border-white/20">
+                              {/* Avatar: h-8 en móvil, h-10 en escritorio */}
+                              <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10 bg-biskoto/10 dark:bg-white/10 rounded-full flex items-center justify-center text-biskoto dark:text-white font-bold uppercase border border-biskoto/20 dark:border-white/20 text-xs sm:text-sm">
                                 {prod.nombre.charAt(0)}
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">{prod.nombre}</div>
+                              <div className="ml-3 sm:ml-4">
+                                {/* Nombre truncado en móvil para evitar desbordes */}
+                                <div className="text-sm font-medium text-gray-900 dark:text-white max-w-[100px] sm:max-w-none truncate">
+                                  {prod.nombre}
+                                </div>
+                                {/* Mostrar Categoría aquí SOLO en móvil (gris pequeño) */}
+                                <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">
+                                  {prod.categorias?.nombre || 'General'}
+                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-slate-600">
+                          
+                          {/* Columna Categoría (Badge): Solo visible en Desktop (md:table-cell) */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm hidden md:table-cell">
+                            <StatusBadge variant="default">
                               {prod.categorias?.nombre || 'General'}
-                            </span>
+                            </StatusBadge>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+
+                          {/* Precio: Padding reducido */}
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {formatCurrency(prod.precio)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${
-                              prod.stock_actual > 10 
-                                ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800' 
-                                : prod.stock_actual > 0
-                                  ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800'
-                                  : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'
-                            }`}>
-                              {prod.stock_actual} items
-                            </span>
+                          
+                          {/* Stock: Padding reducido */}
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                            <StatusBadge variant={getStockVariant(prod.stock_actual)}>
+                              {prod.stock_actual}
+                            </StatusBadge>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end gap-2">
-                              <Link 
-                                to={`/admin/productos/editar/${prod.id}`} 
-                                className="text-biskoto hover:text-biskoto-700 bg-biskoto-50 hover:bg-biskoto/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 p-2 rounded-lg transition-colors border border-transparent dark:border-white/20"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                              
-                              <button 
-                                onClick={() => handleDeleteClick(prod)}
-                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 p-2 rounded-lg transition-colors border border-transparent dark:border-red-900/50">
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
+                          
+                          {/* Acciones: Padding reducido */}
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <TableActions 
+                              editLink={`/admin/productos/editar/${prod.id}`}
+                              onDelete={() => handleDeleteClick(prod)}
+                              deleteTitle="Eliminar producto"
+                            />
                           </td>
                         </tr>
                       ))}
@@ -261,53 +263,22 @@ const ProductosPage = () => {
         </div>
       </main>
 
-      {/* --- MODAL DE CONFIRMACIÓN (Overlay) --- */}
-      {productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            <div className="p-6 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-6">
-                <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
-              </div>
-              
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                ¿Eliminar producto?
-              </h3>
-              
-              <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Estás a punto de eliminar el producto <span className="font-bold text-gray-800 dark:text-gray-200">"{productToDelete.nombre}"</span>. 
-                <br className="hidden sm:block"/>¿Estás seguro de que quieres continuar?
-              </p>
-
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setProductToDelete(null)}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-                >
-                  No, cancelar
-                </button>
-
-                <button
-                  onClick={confirmDelete}
-                  disabled={isDeleting}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Eliminando...
-                    </>
-                  ) : (
-                    "Sí, eliminar"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Modal de Confirmación Reutilizable */}
+      <ConfirmModal 
+        isOpen={!!productToDelete}
+        onClose={() => setProductToDelete(null)}
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+        title="¿Eliminar producto?"
+        message={
+          productToDelete && (
+            <>
+              Estás a punto de eliminar el producto <span className="font-bold text-gray-800 dark:text-gray-200">"{productToDelete.nombre}"</span>. 
+              <br className="hidden sm:block"/>¿Estás seguro de que quieres continuar?
+            </>
+          )
+        }
+      />
     </div>
   );
 };

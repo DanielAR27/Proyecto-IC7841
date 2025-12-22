@@ -10,18 +10,26 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   /**
-   * Al cargar la aplicación, verificamos token y cargamos perfil
+   * Carga Inicial de Sesión.
+   * Al iniciar la app, verifica si hay token. Si existe, intenta obtener el perfil.
+   * Gracias al nuevo interceptor en axiosConfig, si el token expiró, axios intentará
+   * renovarlo automáticamente antes de que esta función falle.
    */
   useEffect(() => {
     const cargarUsuario = async () => {
       const token = localStorage.getItem('token');
+      
       if (token) {
         try {
+          // Si el token es válido (o se renueva exitosamente), cargamos el perfil
           const perfil = await profileService.getMiPerfil();
           setUser(perfil);
         } catch (error) {
           console.error("Error al cargar sesión persistente:", error);
+          // Si falla definitivamente (incluso tras intentar refresh), limpiamos todo
           localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token'); // <--- Limpieza completa
+          setUser(null);
         }
       }
       setLoading(false);
@@ -31,13 +39,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Login: Obtiene token y luego descarga el perfil completo
+   * Login del Sistema.
+   * Ahora guarda tanto el access token como el refresh token que devuelve el backend.
    */
   const login = async (email, password) => {
     try {
       const data = await authService.login(email, password);
-      localStorage.setItem('token', data.token);
       
+      // ALMACENAMIENTO DE TOKENS
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refresh_token', data.refresh_token);
+      
+      // Una vez autenticado, descargamos los datos del usuario
       const perfil = await profileService.getMiPerfil();
       setUser(perfil);
       return perfil;
@@ -46,6 +59,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Registro de Usuario.
+   * (Sin cambios: el registro no inicia sesión automáticamente en este flujo)
+   */
   const register = async (userData) => {
     try {
       const data = await authService.registrar(userData);
@@ -55,12 +72,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Actualización de Perfil.
+   */
   const updateUserProfile = async (datos) => {
     try {
       const response = await profileService.actualizarPerfil(datos);
-      
       const perfilActualizado = response.perfil || response; 
-      
       setUser(prev => ({ ...prev, ...perfilActualizado }));
       return response;
     } catch (error) {
@@ -68,8 +86,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Cierre de Sesión (Logout).
+   * Se asegura de destruir ambas llaves de acceso del almacenamiento local.
+   */
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token'); 
     setUser(null);
   };
 
@@ -99,17 +122,13 @@ export const AuthProvider = ({ children }) => {
       logout, 
       resetPasswordRequest,
       updatePassword,
-      loading 
+      loading
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };

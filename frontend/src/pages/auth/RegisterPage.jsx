@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { XCircle, X } from 'lucide-react';
+import { XCircle, X, Eye, EyeOff } from 'lucide-react';
 import IconBackground from '../../components/IconBackground';
+// 1. Importamos el botón de tema
+import ThemeToggleBtn from '../../components/ThemeToggleBtn';
 
 /**
  * Componente de la página de registro de usuarios.
- * Se implementa una disposición de campos que separa nombre y apellido, 
- * y permite el ingreso opcional de la dirección.
  */
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +19,7 @@ const RegisterPage = () => {
     direccion: ''
   });
 
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [showAlert, setShowAlert] = useState(false);
   const [loadingLocal, setLoadingLocal] = useState(false);
@@ -26,18 +27,12 @@ const RegisterPage = () => {
   const { register, user, loading } = useAuth();
   const navigate = useNavigate();
 
-  /**
-   * Se verifica si existe una sesión activa para redirigir al home.
-   */
   useEffect(() => {
     if (!loading && user) {
       navigate('/home');
     }
   }, [user, loading, navigate]);
 
-  /**
-   * Se gestiona el temporizador para el cierre automático de la alerta.
-   */
   useEffect(() => {
     if (showAlert) {
       const timer = setTimeout(() => setShowAlert(false), 5000);
@@ -45,9 +40,6 @@ const RegisterPage = () => {
     }
   }, [showAlert]);
 
-  /**
-   * Se actualiza el estado local al escribir en cualquier campo del formulario.
-   */
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -55,57 +47,64 @@ const RegisterPage = () => {
     });
   };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setShowAlert(false);
+  const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError('');
+      setShowAlert(false);
 
-        // Validación de teléfono: exactamente 8 números
-        const telefonoRegex = /^[0-9]{8}$/;
-        if (!telefonoRegex.test(formData.telefono)) {
-            setError('El teléfono debe tener exactamente 8 números');
-            setShowAlert(true);
-            return;
-        }
+      // Validación de teléfono: exactamente 8 números
+      const telefonoRegex = /^[0-9]{8}$/;
+      if (!telefonoRegex.test(formData.telefono)) {
+          setError('El teléfono debe tener exactamente 8 números');
+          setShowAlert(true);
+          return;
+      }
 
-        setLoadingLocal(true);
-        try {
-            await register(formData);
-            // Se envía el mensaje de éxito mediante el estado de la ruta
-            navigate('/login', { state: { successMsg: 'Se ha registrado exitosamente' } });
-        } catch (err) {
-            // Se intenta capturar el error específico del backend
-            setError(err.error || 'Error en el servidor. Revisa los datos.');
-            setShowAlert(true);
-        } finally {
-            setLoadingLocal(false);
-        }
-    };
+      setLoadingLocal(true);
+      try {
+          await register(formData);
+          navigate('/login', { state: { successMsg: 'Se ha registrado exitosamente' } });
+      } catch (err) {
+          setError(err.error || 'Error en el servidor. Revisa los datos.');
+          setShowAlert(true);
+      } finally {
+          setLoadingLocal(false);
+      }
+  };
 
   if (loading && !user) return null;
 
   return (
     <IconBackground>
+      
+      {/* --- BOTÓN FLOTANTE DE TEMA --- */}
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggleBtn />
+      </div>
+
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
         
         {/* Alerta de Error */}
         {showAlert && (
-          <div className="max-w-md w-full mb-4 flex items-center justify-between bg-red-50 border-l-4 border-red-500 p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="max-w-lg w-full mb-4 flex items-center justify-between bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-600 p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="flex items-center">
-              <XCircle className="h-5 w-5 text-red-500 mr-3" />
-              <p className="text-sm text-red-700 font-medium">{error}</p>
+              <XCircle className="h-5 w-5 text-red-500 dark:text-red-400 mr-3" />
+              <p className="text-sm text-red-700 dark:text-red-300 font-medium">{error}</p>
             </div>
-            <button onClick={() => setShowAlert(false)} className="text-red-500 hover:text-red-800">
+            <button 
+              onClick={() => setShowAlert(false)} 
+              className="text-red-500 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
         )}
 
         {/* Contenedor del Formulario */}
-        <div className="max-w-lg w-full space-y-6 p-8 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100">
+        <div className="max-w-lg w-full space-y-6 p-8 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 transition-colors duration-300">
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Crear Cuenta</h2>
-            <p className="mt-2 text-sm text-gray-500 font-light">
+            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Crear Cuenta</h2>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-light">
               Únete para gestionar tus pedidos de repostería
             </p>
           </div>
@@ -114,23 +113,23 @@ const RegisterPage = () => {
             {/* Fila de Nombre y Apellido */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Nombre</label>
+                <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Nombre</label>
                 <input
                   name="nombre"
                   type="text"
                   required
-                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-all"
+                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all"
                   value={formData.nombre}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Apellido</label>
+                <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Apellido</label>
                 <input
                   name="apellido"
                   type="text"
                   required
-                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-all"
+                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all"
                   value={formData.apellido}
                   onChange={handleChange}
                 />
@@ -140,53 +139,66 @@ const RegisterPage = () => {
             {/* Email y Teléfono */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Correo</label>
+                <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Correo</label>
                 <input
                   name="email"
                   type="email"
                   required
-                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all"
                   value={formData.email}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Teléfono</label>
+                <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Teléfono</label>
                 <input
                   name="telefono"
                   type="tel"
                   required
                   placeholder="88887777"
-                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                  className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all"
                   value={formData.telefono}
                   onChange={handleChange}
                 />
               </div>
             </div>
 
-            {/* Contraseña */}
+{/* Contraseña con Ojo Mágico */}
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Contraseña</label>
-              <input
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
-                value={formData.password}
-                onChange={handleChange}
-              />
+              <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Contraseña</label>
+              <div className="relative">
+                <input
+                  name="password"
+                  // AQUÍ EL CAMBIO: Tipo dinámico
+                  type={showPassword ? "text" : "password"}
+                  required
+                  // AQUÍ EL CAMBIO: Agregamos 'pr-10' para espacio a la derecha
+                  className="appearance-none rounded-lg block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                
+                {/* Botón del Ojo */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             {/* Dirección Opcional */}
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                Dirección <span className="text-gray-400 lowercase italic">(No obligatorio)</span>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                Dirección <span className="text-gray-400 dark:text-gray-600 lowercase italic">(No obligatorio)</span>
               </label>
               <textarea
                 name="direccion"
                 rows="2"
                 placeholder="Provincia, cantón y señas exactas..."
-                className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-all"
+                className="appearance-none rounded-lg block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-biskoto sm:text-sm transition-all resize-none"
                 value={formData.direccion}
                 onChange={handleChange}
               />
@@ -196,7 +208,7 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={loadingLocal}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-md active:scale-[0.98] disabled:bg-blue-300"
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-biskoto hover:bg-biskoto-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-biskoto transition-all shadow-md active:scale-[0.98] disabled:bg-indigo-300"
               >
                 {loadingLocal ? 'Registrando...' : 'Crear Cuenta'}
               </button>
@@ -206,19 +218,22 @@ const RegisterPage = () => {
           {/* Separador */}
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-200 dark:border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-3 bg-white/0">
-                <div className="h-1.5 w-1.5 rounded-full border border-gray-300 bg-white"></div>
+                <div className="h-1.5 w-1.5 rounded-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"></div>
               </span>
             </div>
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               ¿Ya tienes una cuenta?{' '}
-              <Link to="/login" className="font-medium text-blue-600 underline decoration-blue-600/30 underline-offset-4 hover:text-blue-800 transition-all">
+              <Link 
+                to="/login" 
+                className="font-medium text-biskoto dark:text-blue-400 underline decoration-biskoto/30 dark:decoration-blue-400/30 underline-offset-4 hover:text-biskoto-700 dark:hover:text-blue-300 transition-all"
+              >
                 Inicia sesión aquí
               </Link>
             </p>

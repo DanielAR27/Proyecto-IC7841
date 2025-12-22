@@ -3,7 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Menu, X, User, LogOut, ChevronDown, 
-  Settings, LayoutGrid, Package // Se agrega Package a las importaciones
+  Settings, LayoutGrid, Package, ClipboardList,
+  Ticket, Truck, PackagePlus
 } from 'lucide-react';
 
 // Importación de activos de marca para cada tema
@@ -167,6 +168,77 @@ const Navbar = () => {
                       <Package className={`mr-3 h-4 w-4 ${location.pathname === '/admin/productos' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
                       Productos
                     </Link>
+
+                    {/* Opción 3: Ingredientes */}
+                    <Link
+                      to="/admin/ingredientes"
+                      className={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        location.pathname === '/admin/ingredientes' 
+                          ? 'bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <ClipboardList className={`mr-3 h-4 w-4 ${location.pathname === '/admin/ingredientes' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
+                      Ingredientes
+                    </Link>
+
+                    {/* Opción 4: Cupones */}
+                    <Link
+                      to="/admin/cupones"
+                      className={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        location.pathname === '/admin/cupones' 
+                          ? 'bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <Ticket className={`mr-3 h-4 w-4 ${location.pathname === '/admin/cupones' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
+                      Cupones
+                    </Link>
+
+                    {/* Opción 5: Usuarios */}
+                    <Link
+                      to="/admin/usuarios"
+                      className={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        location.pathname === '/admin/usuarios' 
+                          ? 'bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <User className={`mr-3 h-4 w-4 ${location.pathname === '/admin/usuarios' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
+                      Usuarios
+                    </Link>
+
+                    {/* Opción 6: Proveedores */}
+                    <Link
+                      to="/admin/proveedores"
+                      className={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        location.pathname === '/admin/proveedores' 
+                          ? 'bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <Truck className={`mr-3 h-4 w-4 ${location.pathname === '/admin/proveedores' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
+                      Proveedores
+                    </Link>
+
+                    {/* Opción 6: Compras */}
+                    <Link
+                      to="/admin/compras"
+                      className={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        location.pathname === '/admin/compras' 
+                          ? 'bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white font-semibold' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <PackagePlus className={`mr-3 h-4 w-4 ${location.pathname === '/admin/compras' ? 'text-biskoto dark:text-white' : 'text-gray-400'}`} />
+                      Compras
+                    </Link>
+
                   </div>
                 )}
               </div>
@@ -271,6 +343,41 @@ const Navbar = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Productos
+                </Link>
+                <Link
+                  to="/admin/ingredientes"
+                  className={getMobileLinkClass('/admin/ingredientes')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Ingredientes
+                </Link>
+                <Link
+                  to="/admin/cupones"
+                  className={getMobileLinkClass('/admin/cupones')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Cupones
+                </Link>
+                <Link
+                  to="/admin/usuarios"
+                  className={getMobileLinkClass('/admin/usuarios')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Usuarios
+                </Link>
+                <Link
+                  to="/admin/proveedores"
+                  className={getMobileLinkClass('/admin/proveedores')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Proveedores
+                </Link>
+                <Link
+                  to="/admin/compras"
+                  className={getMobileLinkClass('/admin/compras')}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Compras
                 </Link>
               </div>
             )}

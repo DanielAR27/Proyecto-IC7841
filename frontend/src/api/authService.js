@@ -5,6 +5,15 @@ export const login = async (email, password) => {
   return response.data;
 };
 
+/**
+ * Llama al endpoint de refresco para renovar las credenciales.
+ */
+export const refreshToken = async (refreshToken) => {
+  // Enviamos el token de refresco al backend
+  const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
+  return response.data;
+};
+
 export const registrar = async (userData) => {
   const response = await api.post('/auth/registrar', userData);
   return response.data;

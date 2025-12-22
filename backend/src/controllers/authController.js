@@ -43,10 +43,9 @@ const authController = {
       if (error) return res.status(400).json({ error: error.message });
 
       // 4. Respuesta Sanitizada
-      // No devuelve todo el objeto de Supabase, solo lo necesario.
       res.status(201).json({ 
         mensaje: 'Usuario registrado exitosamente. Por favor verifique su correo.',
-        userId: data.user?.id // Útil si el frontend necesita redirigir o trackear
+        userId: data.user?.id 
       });
 
     } catch (err) {
@@ -57,7 +56,7 @@ const authController = {
 
   /**
    * Inicio de sesión.
-   * Retorna el token y una versión simplificada del usuario.
+   * Retorna el token de acceso Y el token de refresco (llave maestra).
    */
   login: async (req, res) => {
     const { email, password } = req.body;
@@ -74,10 +73,10 @@ const authController = {
 
       if (error) return res.status(401).json({ error: 'Credenciales inválidas.' });
 
-      // Respuesta Filtrada: El frontend usa principalmente el token.
-      // Los detalles del perfil se obtienen en una llamada separada (getMiPerfil).
+      // CAMBIO IMPORTANTE: Se incluye refresh_token en la respuesta
       res.status(200).json({
-        token: data.session.access_token,
+        token: data.session.access_token,       // Token temporal (1 hora)
+        refresh_token: data.session.refresh_token, // Token de renovación (larga duración)
         expires_at: data.session.expires_at,
         user: {
           id: data.user.id,
@@ -92,19 +91,64 @@ const authController = {
   },
 
   /**
+   * NUEVO: Renueva la sesión utilizando el refresh_token.
+   * Permite obtener un nuevo access_token sin pedir credenciales nuevamente.
+   */
+  refreshSession: async (req, res) => {
+    const { refresh_token } = req.body;
+
+    if (!refresh_token) {
+      return res.status(400).json({ error: 'Se requiere el refresh token.' });
+    }
+
+    try {
+      // Solicita a Supabase el intercambio de tokens
+      const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+
+      if (error || !data.session) {
+        // Si el refresh token también expiró o es inválido, el usuario debe loguearse de cero.
+        return res.status(401).json({ error: 'Sesión expirada. Por favor inicie sesión nuevamente.' });
+      }
+
+      // Devuelve el nuevo par de llaves
+      res.status(200).json({
+        token: data.session.access_token,
+        refresh_token: data.session.refresh_token, // Supabase suele rotar este token también por seguridad
+        expires_at: data.session.expires_at
+      });
+
+    } catch (error) {
+      console.error('Error al refrescar sesión:', error);
+      res.status(500).json({ error: 'Error interno al intentar renovar la sesión.' });
+    }
+  },
+
+  /**
    * Gestiona el envío del correo de recuperación
    */
-  recuperarPassword: async (req, res) => {
+recuperarPassword: async (req, res) => {
       const { email, redirectTo } = req.body;
+
+      // --- LOG DE DEPURACIÓN 1: LO QUE LLEGA ---
+      console.log("📨 [BACKEND] Petición recibida para recuperar password");
+      console.log("   - Email:", email);
+      console.log("   - RedirectTo recibido:", redirectTo);
+      // -----------------------------------------
 
       try {
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: redirectTo,
         });
 
+        // --- LOG DE DEPURACIÓN 2: RESPUESTA DE SUPABASE ---
         if (error) {
-          throw error;
+            console.error("❌ [BACKEND] Error de Supabase:", error.message);
+            throw error;
+        } else {
+            console.log("✅ [BACKEND] Supabase dice que envió el correo sin error.");
+            console.log("   - Data:", data);
         }
+        // --------------------------------------------------
 
         res.status(200).json({ mensaje: 'Correo enviado' });
       } catch (error) {
@@ -112,26 +156,22 @@ const authController = {
       }
   },
 
-
   /**
    * Actualiza la contraseña del usuario.
    * Requiere que el usuario esté autenticado (token en header).
    */
   actualizarPassword: async (req, res) => {
     const { password } = req.body;
-    // Obtiene el token que el frontend mandó en el header Authorization
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) return res.status(401).json({ error: 'No autorizado' });
     if (!password) return res.status(400).json({ error: 'La contraseña es requerida' });
 
     try {
-      // 1. Obtiene el usuario dueño del token
       const { data: { user }, error: userError } = await supabase.auth.getUser(token);
       
       if (userError || !user) throw new Error('Token inválido o expirado');
 
-      // 2. Usa el ADMIN de supabase para forzar el cambio de contraseña de ese ID
       const { error } = await supabase.auth.admin.updateUserById(user.id, { password });
 
       if (error) throw error;

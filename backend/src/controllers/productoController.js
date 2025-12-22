@@ -59,16 +59,21 @@ const obtenerProducto = async (req, res) => {
       .select(`
         *,
         categorias ( id, nombre ),
-        producto_imagenes ( id, url, es_principal, orden )
+        producto_imagenes ( id, url, es_principal, orden ),
+        producto_ingredientes (
+          ingrediente_id,
+          cantidad_necesaria,
+          ingredientes ( 
+            nombre, 
+            unidades_medida (nombre, abreviatura)
+          )
+        )
       `)
       .eq('id', id)
       .single();
-
     if (error || !data) {
       return res.status(404).json({ error: 'Producto no encontrado.' });
     }
-
-    // El resultado incluirá una propiedad 'producto_imagenes' con el array de fotos
     res.status(200).json(data);
   } catch (error) {
     console.error('Error al obtener detalle del producto:', error);
@@ -84,7 +89,7 @@ const obtenerProducto = async (req, res) => {
 // backend/src/controllers/productoController.js
 
 const crearProducto = async (req, res) => {
-  const { nombre, precio, descripcion, categoria_id, stock_actual, imagenes } = req.body;
+  const { nombre, precio, descripcion, categoria_id, stock_actual, imagenes, ingredientes } = req.body;
 
   // 1. Validaciones de Negocio
   if (!nombre || nombre.trim().length < 3) {
@@ -105,7 +110,7 @@ const crearProducto = async (req, res) => {
   }
 
   try {
-    // 2. Proceso de inserción (ya existente en tu código)
+    // 1. Insertar Producto (IGUAL)
     const { data: producto, error: productoError } = await supabase
       .from('productos')
       .insert([{ 
@@ -120,7 +125,7 @@ const crearProducto = async (req, res) => {
 
     if (productoError) throw productoError;
 
-    // Registro de imágenes
+    // 2. Insertar Imágenes (IGUAL)
     if (imagenes && imagenes.length > 0) {
       const imagenesData = imagenes.map((img) => ({
         producto_id: producto.id,
@@ -128,8 +133,22 @@ const crearProducto = async (req, res) => {
         es_principal: img.es_principal || false,
         orden: img.orden || 0
       }));
-
       await supabase.from('producto_imagenes').insert(imagenesData);
+    }
+
+    // 3. NUEVO: Insertar Ingredientes (Receta)
+    if (ingredientes && ingredientes.length > 0) {
+      const recetaData = ingredientes.map(ing => ({
+        producto_id: producto.id,
+        ingrediente_id: ing.id,        // ID del ingrediente seleccionado
+        cantidad_necesaria: ing.cantidad // Cantidad que viene del frontend
+      }));
+
+      const { error: errorReceta } = await supabase
+        .from('producto_ingredientes')
+        .insert(recetaData);
+
+      if (errorReceta) throw errorReceta;
     }
 
     res.status(201).json({ mensaje: 'Producto creado exitosamente.', producto });
@@ -146,7 +165,7 @@ const crearProducto = async (req, res) => {
  */
 const actualizarProducto = async (req, res) => {
   const { id } = req.params;
-  const { nombre, precio, descripcion, categoria_id, stock_actual, imagenes } = req.body;
+  const { nombre, precio, descripcion, categoria_id, stock_actual, imagenes, ingredientes } = req.body;
 
   // 1. Validaciones de Integridad
   if (!nombre || nombre.trim().length < 3) {
@@ -218,11 +237,33 @@ const actualizarProducto = async (req, res) => {
       await supabase.from('producto_imagenes').insert(imagenesData);
     }
 
-    res.status(200).json({ mensaje: 'Producto actualizado y storage sincronizado.' });
+    // 6. NUEVO: SINCRONIZAR INGREDIENTES (Receta)
+    // Solo tocamos esto si el frontend envía el campo 'ingredientes'
+    if (ingredientes) {
+      // Borramos la receta anterior
+      await supabase.from('producto_ingredientes').delete().eq('producto_id', id);
+
+      // Insertamos la nueva si hay items
+      if (ingredientes.length > 0) {
+        const recetaData = ingredientes.map(ing => ({
+          producto_id: id,
+          ingrediente_id: ing.id,
+          cantidad_necesaria: ing.cantidad
+        }));
+
+        const { error: errorReceta } = await supabase
+          .from('producto_ingredientes')
+          .insert(recetaData);
+        
+        if (errorReceta) throw errorReceta;
+      }
+    }
+
+    res.status(200).json({ mensaje: 'Producto, receta y archivos actualizados.' });
 
   } catch (error) {
-    console.error('Error en actualización con limpieza:', error);
-    res.status(500).json({ error: 'Error al procesar la actualización y limpieza de archivos.' });
+    console.error('Error en actualización:', error);
+    res.status(500).json({ error: 'Error al procesar la actualización.' });
   }
 };
 
