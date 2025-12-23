@@ -41,14 +41,18 @@ const IngredienteForm = ({
       setFormData({
         nombre: initialData.nombre || '',
         unidad_id: initialData.unidad_id || '',
-        stock_actual: initialData.stock_actual || 0
+        stock_actual: initialData.stock_actual || 0,
+        es_ilimitado: initialData.es_ilimitado || false
       });
     }
   }, [initialData]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+      const { name, value, type, checked } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
   };
 
   const handleSubmit = (e) => {
@@ -134,14 +138,14 @@ const IngredienteForm = ({
           </div>
         </div>
 
-        {/* Campo: Stock (Solo en edición) */}
-        {isEditing && (
-          <div>
+        {/* Campo: Stock (Solo en edición Y si NO es ilimitado) */}
+        {isEditing && !formData.es_ilimitado && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
             <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
               <Package size={16} /> Stock Actual
             </label>
             <div className="relative">
-               <input
+                <input
                 type="number"
                 value={formData.stock_actual}
                 disabled
@@ -150,6 +154,26 @@ const IngredienteForm = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Opción de Stock Ilimitado */}
+      <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+        <input
+          type="checkbox"
+          id="es_ilimitado"
+          name="es_ilimitado"
+          checked={formData.es_ilimitado}
+          onChange={handleChange}
+          className="h-5 w-5 rounded border-gray-300 text-biskoto focus:ring-biskoto"
+        />
+        <div>
+          <label htmlFor="es_ilimitado" className="text-sm font-bold text-gray-900 dark:text-white cursor-pointer select-none">
+            Ingrediente de consumo ilimitado
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Útil para insumos como agua o gas. No se validará su stock ni requerirá compras.
+          </p>
+        </div>
       </div>
 
       {/* Botones de acción */}

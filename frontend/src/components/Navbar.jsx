@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Menu, X } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 // Importación de Subcomponentes
 import GuestMenu from './navbar/GuestMenu';
@@ -17,6 +18,7 @@ import logoDark from '../assets/logo_biskoto_transparente_dm.png';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { toggleCart } = useCart();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -42,12 +44,12 @@ const Navbar = () => {
               <img 
                 src={logoLight} 
                 alt="Biskoto Logo" 
-                className="h-20 w-auto object-contain transition-transform group-hover:scale-105 dark:hidden" 
+                className="h-26 w-auto object-contain transition-transform group-hover:scale-105 dark:hidden" 
               />
               <img 
                 src={logoDark} 
                 alt="Biskoto Logo" 
-                className="h-20 w-auto object-contain transition-transform group-hover:scale-105 hidden dark:block" 
+                className="h-26 w-auto object-contain transition-transform group-hover:scale-105 hidden dark:block" 
               />
             </Link>
 
@@ -67,7 +69,9 @@ const Navbar = () => {
             {!user && <ThemeToggleBtn />}
             
             {/* 2. Widget del Carrito (Siempre visible) */}
-            <CartWidget />
+            <button onClick={toggleCart} className="focus:outline-none">
+              <CartWidget />
+            </button>
 
             <div className="h-6 w-px bg-gray-200 dark:bg-slate-700 mx-1"></div>
 

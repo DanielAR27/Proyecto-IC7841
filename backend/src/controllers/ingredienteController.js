@@ -49,7 +49,7 @@ const obtenerIngrediente = async (req, res) => {
  * Ahora recibe 'unidad_id' en lugar de 'unidad_medida'.
  */
 const crearIngrediente = async (req, res) => {
-  const { nombre, unidad_id } = req.body;
+  const { nombre, unidad_id, es_ilimitado } = req.body;
 
   if (!nombre || nombre.trim().length < 2) {
     return res.status(400).json({ error: 'El nombre es obligatorio.' });
@@ -64,7 +64,8 @@ const crearIngrediente = async (req, res) => {
       .from('ingredientes')
       .insert([{ 
         nombre, 
-        unidad_id, // Usamos la nueva columna FK
+        unidad_id,
+        es_ilimitado: es_ilimitado || false,
         stock_actual: 0 
       }])
       .select('*, unidades_medida(nombre, abreviatura)')
@@ -89,12 +90,12 @@ const crearIngrediente = async (req, res) => {
  */
 const actualizarIngrediente = async (req, res) => {
   const { id } = req.params;
-  const { nombre, unidad_id } = req.body;
+  const { nombre, unidad_id, es_ilimitado } = req.body;
 
   try {
     const { data, error } = await supabase
       .from('ingredientes')
-      .update({ nombre, unidad_id }) // Actualizamos el ID de la unidad
+      .update({ nombre, unidad_id, es_ilimitado }) 
       .eq('id', id)
       .select('*, unidades_medida(nombre, abreviatura)')
       .single();

@@ -14,7 +14,13 @@ router.get('/', productoController.listarProductosCatalogo);
 /**
  * Obtiene el detalle de un producto específico por su ID.
  */
-router.get('/:id', verifyToken, productoController.obtenerProducto);
+router.get('/:id', productoController.obtenerProducto);
+
+/**
+ * Dado un array de items, pregunta por su disponibilidad y reporta
+ * si hay ingredientes o productos suficientes.
+ */
+router.post('/validar-disponibilidad', productoController.validarDisponibilidadMasiva);
 
 // --- RUTAS DE ADMINISTRACIÓN ---
 

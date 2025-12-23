@@ -29,6 +29,15 @@ export const getProducto = async (id) => {
 };
 
 /**
+ * Envía la lista de productos del carrito al servidor para validar 
+ * si existe disponibilidad física (insumos + stock) para procesar el pedido.
+ */
+export const validarDisponibilidad = async (items) => {
+  const response = await api.post('/productos/validar-disponibilidad', { items });
+  return response.data; // Si falla aquí, la promesa se rechaza automáticamente
+};
+
+/**
  * Registra un nuevo producto en el sistema.
  * El parámetro 'productoData' debe incluir el array de URLs de imágenes
  * previamente cargadas en el bucket de Supabase.

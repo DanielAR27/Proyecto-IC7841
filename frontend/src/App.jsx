@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AdminRoute from './components/AdminRoute';
+import CartDrawer from './components/CartDrawer';
 
 // Páginas de Autenticación
 import LoginPage from './pages/auth/LoginPage';
@@ -11,6 +12,7 @@ import UpdatePasswordPage from './pages/auth/UpdatePasswordPage';
 // Páginas de Usuario y General
 import HomePage from './pages/home/HomePage';
 import ProfilePage from './pages/user/ProfilePage';
+import ProductDetailPage from './pages/shop/ProductDetailPage';
 
 // Páginas de Administración
 
@@ -87,6 +89,7 @@ function App() {
 
         {/* Ruta Pública Principal (Catálogo visible para todos) */}
         <Route path="/home" element={<HomePage />} />
+        <Route path="/producto/:id" element={<ProductDetailPage />} />
 
         {/* Rutas Privadas de Usuario (Requieren Login) */}
         <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
@@ -125,6 +128,8 @@ function App() {
         <Route path="/" element={<Navigate to="/home" />} />
         <Route path="*" element={<Navigate to="/home" />} />
       </Routes>
+
+      <CartDrawer />
     </Router>
   );
 }

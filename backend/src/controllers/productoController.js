@@ -17,7 +17,11 @@ const listarProductosCatalogo = async (req, res) => {
       .select(`
         *,
         categorias ( id, nombre ),
-        producto_imagenes ( id, url, es_principal )
+        producto_imagenes ( id, url, es_principal ),
+        producto_ingredientes (
+          cantidad_necesaria,
+          ingredientes ( stock_actual, es_ilimitado )
+        )
       `, { count: 'exact' }); // count: 'exact' nos dará el total filtrado
 
     // 3. APLICAMOS EL FILTRO SI EXISTE BÚSQUEDA
@@ -69,7 +73,8 @@ const listarProductosAdmin = async (req, res) => {
 
 /**
  * OBTENER UN PRODUCTO (Público/Admin)
- * Incluye los datos de la categoría y el array de imágenes asociadas.
+ * Incluye los datos de la categoría, imágenes y RECETA CON STOCK.
+ * Ahora traemos 'stock_actual' de cada ingrediente para calcular disponibilidad en el frontend.
  */
 const obtenerProducto = async (req, res) => {
   const { id } = req.params;
@@ -84,13 +89,16 @@ const obtenerProducto = async (req, res) => {
           ingrediente_id,
           cantidad_necesaria,
           ingredientes ( 
-            nombre, 
+            nombre,
+            stock_actual, 
+            es_ilimitado,
             unidades_medida (nombre, abreviatura)
           )
         )
       `)
       .eq('id', id)
       .single();
+
     if (error || !data) {
       return res.status(404).json({ error: 'Producto no encontrado.' });
     }
@@ -98,6 +106,102 @@ const obtenerProducto = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener detalle del producto:', error);
     res.status(500).json({ error: 'Error al buscar el producto.' });
+  }
+};
+
+/**
+ * VALIDAR DISPONIBILIDAD MASIVA (CORREGIDO)
+ * Calcula la capacidad máxima real de fabricación e inventario
+ * sin limitarse por la cantidad enviada por el usuario.
+ */
+const validarDisponibilidadMasiva = async (req, res) => {
+  const { items } = req.body; 
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'No hay items para validar.' });
+  }
+
+  try {
+    const ids = items.map(item => item.id);
+
+    // 1. Obtener recetas y stock de todos los productos y sus ingredientes
+    const { data: recetas, error: errorRecetas } = await supabase
+      .from('producto_ingredientes')
+      .select(`
+        producto_id,
+        ingrediente_id,
+        cantidad_necesaria,
+        productos ( id, nombre, stock_actual ),
+        ingredientes ( id, nombre, stock_actual, es_ilimitado )
+      `)
+      .in('producto_id', ids);
+
+    if (errorRecetas) throw errorRecetas;
+
+    // 2. Agrupar datos para cálculos rápidos
+    const infoIngredientes = {}; 
+    const infoProductos = {};
+
+    recetas.forEach(receta => {
+      infoIngredientes[receta.ingrediente_id] = receta.ingredientes;
+      infoProductos[receta.producto_id] = receta.productos;
+    });
+
+    const disponibilidadReal = {};
+    const conflictos = [];
+
+    // 3. CÁLCULO DE CAPACIDAD MÁXIMA POR PRODUCTO
+    ids.forEach(prodId => {
+      const producto = infoProductos[prodId];
+      if (!producto) return;
+
+      // Iniciamos con el stock físico del producto terminado
+      let maximoFabricable = producto.stock_actual || 0;
+
+      // Evaluamos cada ingrediente de la receta para este producto específico
+      const recetaDelProducto = recetas.filter(r => r.producto_id === prodId);
+      
+      recetaDelProducto.forEach(r => {
+
+        if (r.ingredientes.es_ilimitado) {
+                return; 
+        }
+
+        const stockDisponibleIng = r.ingredientes.stock_actual || 0;
+        const cantidadNecesaria = r.cantidad_necesaria || 1;
+        
+        // Cuántos productos se pueden hacer con este ingrediente específico
+        const posibleConEsteIng = Math.floor(stockDisponibleIng / cantidadNecesaria);
+        
+        // El "Reactivo Limitante": El mínimo entre el stock del producto y sus ingredientes
+        maximoFabricable = Math.min(maximoFabricable, posibleConEsteIng);
+      });
+
+      // Guardamos el máximo absoluto posible
+      disponibilidadReal[prodId] = maximoFabricable < 0 ? 0 : maximoFabricable;
+
+      // 4. DETECCIÓN DE CONFLICTOS
+      const itemEnCarrito = items.find(i => i.id === prodId);
+      if (itemEnCarrito && itemEnCarrito.cantidad > maximoFabricable) {
+        conflictos.push({
+          id: prodId,
+          nombre: producto.nombre,
+          cantidadSolicitada: itemEnCarrito.cantidad,
+          cantidadDisponible: disponibilidadReal[prodId]
+        });
+      }
+    });
+
+    // 5. RESPUESTA FINAL
+    res.status(200).json({
+      valido: conflictos.length === 0,
+      conflictos,
+      disponibilidadReal // Ahora contiene el stock total real (ej: 11), no el limitado (ej: 4)
+    });
+
+  } catch (error) {
+    console.error('Error al validar disponibilidad masiva:', error);
+    res.status(500).json({ error: 'Error interno al validar el inventario.' });
   }
 };
 
@@ -348,6 +452,7 @@ module.exports = {
   listarProductosCatalogo,
   listarProductosAdmin,
   obtenerProducto,
+  validarDisponibilidadMasiva,
   crearProducto,
   actualizarProducto,
   eliminarProducto

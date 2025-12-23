@@ -12,32 +12,29 @@ import { getCategorias } from '../../api/categoriaService';
 import { getIngredientes } from '../../api/ingredienteService'; 
 import { getSignedUploadUrl } from '../../api/storageService';
 import { supabase } from '../../config/supabaseClient';
+import SearchableSelect from '../../components/ui/SearchableSelect'; 
 
-/**
- * Componente de Formulario para la gestión de Productos.
- * Integra la administración de metadatos, galería fotográfica y ficha técnica (receta)
- * utilizando el nuevo catálogo de unidades de medida relacionales.
- */
-const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, buttonText = 'Guardar Producto' }) => {
+const ProductoForm = ({ initialData, onSubmit, loading: submitting, error: externalError, buttonText = 'Guardar Producto' }) => {
   const [formData, setFormData] = useState({
-    nombre: '', precio: '', descripcion: '', categoria_id: '', stock_actual: 0
+    nombre: '', precio: 0, descripcion: '', categoria_id: '', stock_actual: 0
   });
 
-  // El sistema mantiene estados separados para los catálogos de la base de datos
   const [categorias, setCategorias] = useState([]);
   const [ingredientesDb, setIngredientesDb] = useState([]); 
-  const [fetchingData, setFetchingData] = useState(true); // Controla la carga inicial de catálogos
+  const [fetchingData, setFetchingData] = useState(true);
   
-  // La receta se gestiona como un arreglo de objetos vinculados por ID de ingrediente
   const [receta, setReceta] = useState([]); 
   const [selectedIngrediente, setSelectedIngrediente] = useState('');
   const [cantidadIngrediente, setCantidadIngrediente] = useState('');
 
-  // Estados para la gestión de archivos y procesos de subida al bucket
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  // El componente recupera todos los catálogos necesarios al montarse para evitar parpadeos en la UI
+  const [itemError, setItemError] = useState(null);
+  
+  // NUEVO: Estado para errores locales (como el de subida de imágenes)
+  const [uploadError, setUploadError] = useState(null);
+
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
@@ -57,15 +54,14 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
     cargarCatalogos();
   }, []);
 
-  // Sincronización de datos cuando el componente recibe información inicial para edición
   useEffect(() => {
     if (initialData) {
       setFormData({
         nombre: initialData.nombre || '',
-        precio: initialData.precio || '',
+        precio: initialData.precio ?? '',
         descripcion: initialData.descripcion || '',
         categoria_id: initialData.categoria_id || '',
-        stock_actual: initialData.stock_actual || 0
+        stock_actual: initialData.stock_actual ?? 0
       });
 
       if (initialData.producto_imagenes) {
@@ -82,7 +78,6 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
         const recetaExistente = initialData.producto_ingredientes.map(item => ({
           id: item.ingrediente_id,
           nombre: item.ingredientes?.nombre, 
-          // Se accede a la abreviatura mediante la nueva relación de unidades de medida
           unidad: item.ingredientes?.unidades_medida?.abreviatura || 'u',
           cantidad: item.cantidad_necesaria
         }));
@@ -91,12 +86,18 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
     }
   }, [initialData]);
 
-  // Gestión automática del scroll para enfocar errores reportados por el servidor
+  // Gestión automática del scroll para errores externos O locales
   useEffect(() => {
-    if (error) window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [error]);
+    if (externalError || uploadError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [externalError, uploadError]);
 
-  // Lógica de carga de imágenes mediante drag and drop
+  const ingSeleccionadoObj = ingredientesDb.find(i => i.id === Number(selectedIngrediente));
+  const requiereEnteros = ingSeleccionadoObj 
+    ? ['u', 'doc'].includes(ingSeleccionadoObj.unidades_medida?.abreviatura?.toLowerCase())
+    : false;
+
   const onDrop = useCallback(acceptedFiles => {
     const newFiles = acceptedFiles.slice(0, 10 - files.length).map(file => ({
       file,
@@ -111,7 +112,6 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
     onDrop, accept: { 'image/*': [] }, maxFiles: 10
   });
 
-  // Remueve un archivo de la lista y garantiza que siempre exista una imagen principal
   const removeFile = (id) => {
     setFiles(prev => {
       const filtered = prev.filter(f => f.id !== id);
@@ -130,13 +130,20 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
     const { name, value } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [name]: (name === 'precio' || name === 'stock_actual') ? (value === '' ? '' : Number(value)) : value 
+      [name]: (name === 'precio' || name === 'stock_actual') 
+        ? (value === '' ? '' : Number(value)) 
+        : value 
     }));
   };
 
-  // Añade un insumo a la receta local validando existencias y unidades
   const agregarIngrediente = () => {
     if (!selectedIngrediente || !cantidadIngrediente || Number(cantidadIngrediente) <= 0) return;
+
+    if (requiereEnteros && !Number.isInteger(Number(cantidadIngrediente))) {
+      setItemError(`El ingrediente "${ingSeleccionadoObj.nombre}" se mide en unidades enteras, no acepta decimales.`);
+      return;
+    }
+
     if (receta.some(item => item.id === Number(selectedIngrediente))) return;
 
     const ingInfo = ingredientesDb.find(i => i.id === Number(selectedIngrediente));
@@ -145,43 +152,65 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
     setReceta([...receta, {
       id: ingInfo.id,
       nombre: ingInfo.nombre,
-      // Se vincula la abreviatura de la unidad desde el catálogo relacional
       unidad: ingInfo.unidades_medida?.abreviatura || 'u',
       cantidad: Number(cantidadIngrediente)
     }]);
+    setItemError(null);
     setSelectedIngrediente('');
     setCantidadIngrediente('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validación de precio básico antes de intentar subir nada
+    if (!formData.precio || Number(formData.precio) <= 0) {
+       setUploadError("El precio de venta debe ser mayor a 0.");
+       return;
+    }
+
     setUploading(true);
+    setUploadError(null); // Limpiamos errores previos
+
     try {
       const uploadPromises = files.map(async (f, index) => {
         if (f.isExisting) return { url: f.url, es_principal: f.isPrincipal, orden: index };
+        
         const fileExt = f.file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        // Aquí es donde ocurría el error 403/500
         const { token, path } = await getSignedUploadUrl(fileName);
+        
         await supabase.storage.from('productos').uploadToSignedUrl(path, token, f.file);
+        
         const { data: { publicUrl } } = supabase.storage.from('productos').getPublicUrl(path);
         return { url: publicUrl, es_principal: f.isPrincipal, orden: index };
       });
 
       const imagenesFinales = await Promise.all(uploadPromises);
+      
       const payload = { 
         ...formData, 
         imagenes: imagenesFinales,
         ingredientes: receta.map(item => ({ id: item.id, cantidad: item.cantidad }))
       };
+      
       await onSubmit(payload);
+
     } catch (err) {
-      console.error("Error crítico durante el guardado del producto", err);
+      console.error("Error crítico durante el guardado:", err);
+      // CORRECCIÓN: Ahora sí actualizamos el estado para mostrar el error visualmente
+      setUploadError("Error al procesar las imágenes. Verifica tu conexión o intenta de nuevo.");
+      
+      // Forzamos el scroll arriba manualmente por si el useEffect falla en timing
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
     } finally {
       setUploading(false);
     }
   };
 
-  // Interfaz de carga inicial para asegurar que el formulario se muestre con todos los catálogos listos
   if (fetchingData) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -193,139 +222,210 @@ const ProductoForm = ({ initialData, onSubmit, loading: submitting, error, butto
 
   return (
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+      
+      {/* CORRECCIÓN: Mostrar tanto error externo como el nuevo error de subida */}
       <AnimatePresence>
-        {error && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/50 flex items-center text-red-700 dark:text-red-400 overflow-hidden">
+        {(externalError || uploadError) && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }} 
+            animate={{ opacity: 1, height: 'auto' }} 
+            exit={{ opacity: 0, height: 0 }} 
+            className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/50 flex items-center text-red-700 dark:text-red-400 overflow-hidden"
+          >
             <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-            <span className="text-sm font-medium">{error}</span>
+            <span className="text-sm font-medium">{externalError || uploadError}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       <form onSubmit={handleSubmit} className="p-8 space-y-10">
+        {/* ... (Resto del formulario igual que antes) ... */}
+        
         {/* SECCIÓN: GALERÍA DE IMÁGENES */}
         <div className="space-y-4">
-          <label className="block text-sm font-semibold flex items-center gap-2 text-gray-700 dark:text-white transition-colors">
-            <ImageIcon size={18} className="text-biskoto dark:text-white" /> 
-            Fotografías del Producto <span className="text-xs font-normal opacity-60">(Máximo 10)</span>
-          </label>
-          
-          <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-10 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-3 ${isDragActive ? 'border-biskoto bg-biskoto/10 dark:border-white dark:bg-white/20' : 'border-biskoto/40 bg-biskoto/5 dark:border-white/30 dark:bg-white/5 hover:border-biskoto dark:hover:border-white dark:hover:bg-white/10'}`}>
-            <input {...getInputProps()} />
-            <div className="p-4 rounded-full bg-white dark:bg-transparent shadow-sm border border-biskoto/20 dark:border-white/40">
-              <Plus size={28} className="text-biskoto dark:text-white" />
+            {/* ... Código de Dropzone ... */}
+             <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-10 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-3 ${isDragActive ? 'border-biskoto bg-biskoto/10 dark:border-white dark:bg-white/20' : 'border-biskoto/40 bg-biskoto/5 dark:border-white/30 dark:bg-white/5 hover:border-biskoto dark:hover:border-white dark:hover:bg-white/10'}`}>
+                <input {...getInputProps()} />
+                <div className="p-4 rounded-full bg-white dark:bg-transparent shadow-sm border border-biskoto/20 dark:border-white/40">
+                <Plus size={28} className="text-biskoto dark:text-white" />
+                </div>
+                <div className="text-center">
+                <p className="text-sm font-bold text-biskoto dark:text-white">Haz clic para subir <span className="font-normal opacity-80">o arrastra tus fotos</span></p>
+                <p className="text-[11px] uppercase tracking-widest text-biskoto/60 dark:text-white/50 mt-1 font-bold">PNG, JPG o WEBP hasta 2MB</p>
+                </div>
             </div>
-            <div className="text-center">
-              <p className="text-sm font-bold text-biskoto dark:text-white">Haz clic para subir <span className="font-normal opacity-80">o arrastra tus fotos</span></p>
-              <p className="text-[11px] uppercase tracking-widest text-biskoto/60 dark:text-white/50 mt-1 font-bold">PNG, JPG o WEBP hasta 2MB</p>
+            
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mt-6">
+                <AnimatePresence>
+                {files.map((file) => (
+                    <motion.div key={file.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className={`relative aspect-square rounded-xl overflow-hidden border-2 shadow-xl transition-all ${file.isPrincipal ? 'border-biskoto ring-4 ring-biskoto/20 dark:border-white dark:ring-white/30' : 'border-white/10 dark:border-white/10'}`}>
+                    <img src={file.preview} alt="preview" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeFile(file.id)} className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white p-1.5 rounded-full backdrop-blur-md transition-colors"><X size={14} /></button>
+                    <button type="button" onClick={() => setPrincipal(file.id)} className={`absolute bottom-2 left-2 right-2 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${file.isPrincipal ? 'bg-biskoto text-white dark:bg-white dark:text-slate-900' : 'bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-white backdrop-blur-sm'}`}>
+                        {file.isPrincipal ? '✓ Principal' : 'Usar Portada'}
+                    </button>
+                    </motion.div>
+                ))}
+                </AnimatePresence>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mt-6">
-            <AnimatePresence>
-              {files.map((file) => (
-                <motion.div key={file.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className={`relative aspect-square rounded-xl overflow-hidden border-2 shadow-xl transition-all ${file.isPrincipal ? 'border-biskoto ring-4 ring-biskoto/20 dark:border-white dark:ring-white/30' : 'border-white/10 dark:border-white/10'}`}>
-                  <img src={file.preview} alt="preview" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => removeFile(file.id)} className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white p-1.5 rounded-full backdrop-blur-md transition-colors"><X size={14} /></button>
-                  <button type="button" onClick={() => setPrincipal(file.id)} className={`absolute bottom-2 left-2 right-2 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${file.isPrincipal ? 'bg-biskoto text-white dark:bg-white dark:text-slate-900' : 'bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-white backdrop-blur-sm'}`}>
-                    {file.isPrincipal ? '✓ Principal' : 'Usar Portada'}
-                  </button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
         </div>
 
         {/* SECCIÓN: DATOS GENERALES */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="md:col-span-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><Package size={16} /> Nombre del Producto <span className="text-red-500">*</span></label>
-            <input name="nombre" type="text" required placeholder="Ej: Pastel de Chocolate" value={formData.nombre} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><List size={16} /> Categoría</label>
-            <div className="relative">
-              <select name="categoria_id" value={formData.categoria_id} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 appearance-none focus:ring-2 focus:ring-biskoto outline-none dark:text-white transition-all">
-                <option value="">Sin categoría</option>
-                {categorias.map(cat => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+            <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><Package size={16} /> Nombre del Producto <span className="text-red-500">*</span></label>
+                <input name="nombre" type="text" required placeholder="Ej: Pastel de Chocolate" value={formData.nombre} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" />
             </div>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><DollarSign size={16} /> Precio de Venta <span className="text-red-500">*</span></label>
-            <input name="precio" type="number" step="0.01" min="0" required placeholder="0.00" value={formData.precio} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" />
-          </div>
+            <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2">
+                <List size={16} /> Categoría
+                </label>
+                <div className="relative z-30">
+                <SearchableSelect
+                    value={formData.categoria_id}
+                    onChange={(val) => setFormData(prev => ({ ...prev, categoria_id: val }))}
+                    placeholder="Buscar categoría..."
+                    options={[
+                    { value: "", label: "Sin categoría" }, 
+                    ...categorias.map(cat => ({
+                        value: cat.id,
+                        label: cat.nombre
+                    }))
+                    ]}
+                />
+                </div>
+            </div>
+            <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><DollarSign size={16} /> Precio de Venta <span className="text-red-500">*</span></label>
+                <input name="precio" type="number" step="0.01" min="0" required placeholder="0.00" value={formData.precio} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" />
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"> <Database size={16} /> Stock Actual para Venta
-            </label>
-            <input name="stock_actual" type="number" min="0" placeholder="0" value={formData.stock_actual} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" 
-            />
-          </div>
+            <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"> <Database size={16} /> Stock Actual para Venta
+                </label>
+                <input name="stock_actual" type="number" min="0" placeholder="0" value={formData.stock_actual} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-biskoto dark:text-white transition-all" 
+                />
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><Info size={16} /> Descripción</label>
-            <textarea name="descripcion" rows="3" placeholder="Detalles o ingredientes especiales..." value={formData.descripcion} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white resize-none transition-all" />
-          </div>
+            <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2"><Info size={16} /> Descripción</label>
+                <textarea name="descripcion" rows="3" placeholder="Detalles o ingredientes especiales..." value={formData.descripcion} onChange={handleChange} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-biskoto dark:text-white resize-none transition-all" />
+            </div>
         </div>
 
         {/* SECCIÓN: FICHA TÉCNICA (RECETA) */}
         <div className="pt-8 pb-6 border-t border-gray-100 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <ChefHat className="text-biskoto" size={24} /> Ficha Técnica / Receta
-            </h3>
-            <span className="text-xs bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white px-3 py-1 rounded-full font-bold uppercase tracking-widest">{receta.length} Insumos</span>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-gray-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-end mb-8 shadow-inner">
-            <div className="flex-1 w-full">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Ingrediente</label>
-              <div className="relative">
-                <select value={selectedIngrediente} onChange={(e) => setSelectedIngrediente(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 appearance-none focus:ring-2 focus:ring-biskoto outline-none dark:text-white shadow-sm transition-all">
-                  <option value="">Seleccionar insumo...</option>
-                  {ingredientesDb.map(ing => (
-                    <option key={ing.id} value={ing.id}>{ing.nombre} ({ing.unidades_medida?.abreviatura || 'u'})</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              </div>
+             <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <ChefHat className="text-biskoto" size={24} /> Ficha Técnica / Receta
+                </h3>
+                <span className="text-xs bg-biskoto/10 text-biskoto dark:bg-white/10 dark:text-white px-3 py-1 rounded-full font-bold uppercase tracking-widest">{receta.length} Insumos</span>
             </div>
-            <div className="w-full md:w-32">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Cant.</label>
-              <input type="number" step="0.01" min="0" placeholder="0.00" value={cantidadIngrediente} onChange={(e) => setCantidadIngrediente(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-biskoto outline-none dark:text-white shadow-sm transition-all" />
-            </div>
-            <button type="button" onClick={agregarIngrediente} className="w-full md:w-auto px-8 py-2.5 bg-slate-900 dark:bg-biskoto text-white rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-md text-xs uppercase tracking-widest">Añadir</button>
-          </div>
 
-          {receta.length > 0 ? (
-            <div className="border border-gray-200 dark:border-slate-700 rounded-2xl overflow-visible shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 dark:bg-slate-700/50">
-                  <tr>
-                    <th className="px-6 py-3 text-[10px] font-black text-gray-500 uppercase">Ingrediente</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-gray-500 uppercase text-center">Cantidad</th>
-                    <th className="px-6 py-3 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
-                  {receta.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{item.nombre}</td>
-                      <td className="px-6 py-4 text-center"><span className="px-3 py-1 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-black text-biskoto dark:text-white uppercase tracking-tighter">{item.cantidad} {item.unidad}</span></td>
-                      <td className="px-6 py-4 text-right"><button type="button" onClick={() => setReceta(receta.filter(r => r.id !== item.id))} className="p-2 text-red-400 hover:text-red-600 transition-all"><Trash2 size={18} /></button></td>
+            {/* Mensaje de error local con soporte para modo oscuro y botón de cierre */}
+            <AnimatePresence>
+                {itemError && (
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-xl flex items-center justify-between text-red-700 dark:text-red-400 overflow-hidden shadow-sm"
+                >
+                    <div className="flex items-center gap-3">
+                    <AlertCircle size={18} className="flex-shrink-0" />
+                    <span className="text-xs font-bold tracking-tight">{itemError}</span>
+                    </div>
+                    <button 
+                    type="button"
+                    onClick={() => setItemError(null)}
+                    className="p-1 hover:bg-red-100 dark:hover:bg-red-800/40 rounded-full transition-colors"
+                    title="Cerrar aviso"
+                    >
+                    <X size={16} />
+                    </button>
+                </motion.div>
+                )}
+            </AnimatePresence>
+
+            <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-gray-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-end mb-8 shadow-inner overflow-visible"> 
+                {/* Selector Buscable (Estilo Blanco y Pequeño) */}
+                <div className="flex-1 w-full relative z-20">
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Ingrediente</label>
+                <SearchableSelect 
+                    value={selectedIngrediente}
+                    onChange={(val) => setSelectedIngrediente(val)}
+                    placeholder="Buscar insumo..."
+                    
+                    // AQUI ESTÁ EL CAMBIO PARA QUE COINCIDA CON EL INPUT DE AL LADO
+                    bgClasses="bg-white dark:bg-slate-800"
+                    pyClasses="py-2.5"
+                    
+                    options={ingredientesDb.map(ing => ({
+                    value: ing.id,
+                    label: ing.nombre,
+                    subLabel: ing.unidades_medida?.abreviatura || 'u'
+                    }))}
+                />
+                </div>
+
+                {/* Campo Cantidad */}
+                <div className="w-full md:w-32 relative z-10">
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">
+                    Cant.
+                </label>
+                <input 
+                    type="number" 
+                    step={requiereEnteros ? "1" : "0.01"} 
+                    min="0" 
+                    placeholder="0.00" 
+                    value={cantidadIngrediente} 
+                    onChange={(e) => {
+                    setCantidadIngrediente(e.target.value);
+                    if (itemError) setItemError(null);
+                    }} 
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-biskoto outline-none dark:text-white shadow-sm transition-all" 
+                />
+                </div>
+
+                {/* Botón "+" (Deshabilitado si no hay datos) */}
+                <button 
+                type="button" 
+                onClick={agregarIngrediente} 
+                disabled={!selectedIngrediente || !cantidadIngrediente || Number(cantidadIngrediente) <= 0}
+                className="w-full md:w-[46px] h-[46px] flex items-center justify-center bg-slate-900 dark:bg-biskoto text-white rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-md disabled:bg-gray-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                title="Agregar a la receta"
+                >
+                <Plus size={24} strokeWidth={3} />
+                </button>
+            </div>
+
+            {receta.length > 0 ? (
+                <div className="border border-gray-200 dark:border-slate-700 rounded-2xl overflow-visible shadow-sm">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 dark:bg-slate-700/50">
+                    <tr>
+                        <th className="px-6 py-3 text-[10px] font-black text-gray-500 uppercase">Ingrediente</th>
+                        <th className="px-6 py-3 text-[10px] font-black text-gray-500 uppercase text-center">Cantidad</th>
+                        <th className="px-6 py-3 text-right"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700">
-              <ChefHat className="mx-auto h-10 w-10 text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">No hay ingredientes asignados a esta receta.</p>
-            </div>
-          )}
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                    {receta.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{item.nombre}</td>
+                        <td className="px-6 py-4 text-center"><span className="px-3 py-1 bg-gray-100 dark:bg-slate-800 rounded-lg text-xs font-black text-biskoto dark:text-white uppercase tracking-tighter">{item.cantidad} {item.unidad}</span></td>
+                        <td className="px-6 py-4 text-right"><button type="button" onClick={() => setReceta(receta.filter(r => r.id !== item.id))} className="p-2 text-red-400 hover:text-red-600 transition-all"><Trash2 size={18} /></button></td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                </div>
+            ) : (
+                <div className="text-center py-12 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700">
+                <ChefHat className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">No hay ingredientes asignados a esta receta.</p>
+                </div>
+            )}
         </div>
 
         {/* BOTONES DE ACCIÓN */}

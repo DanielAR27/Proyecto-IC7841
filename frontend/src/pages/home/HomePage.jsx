@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { getProductosCatalogo } from '../../api/productoService';
-import { Search, ShoppingCart, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Search, ShoppingCart, ChevronLeft, ChevronRight, Filter, Eye } from 'lucide-react';
 
 /**
  * Componente HomePage (Catálogo Público).
@@ -12,6 +12,7 @@ import { Search, ShoppingCart, ChevronLeft, ChevronRight, Filter } from 'lucide-
  * la navegación (página actual y búsqueda), permitiendo compartir enlaces específicos.
  */
 const HomePage = () => {
+  const navigate = useNavigate(); // Hook de navegación
   const { user } = useAuth();
   
   // Se gestionan los parámetros de la URL (query strings)
@@ -145,17 +146,36 @@ const HomePage = () => {
                   const imagenPrincipal = producto.producto_imagenes?.find(img => img.es_principal)?.url 
                     || producto.producto_imagenes?.[0]?.url 
                     || 'https://placehold.co/300x300?text=Sin+Imagen';
+               
+                  // 1. Calculamos disponibilidad real considerando ingredientes (Igual que en el detalle)
+                  let stockDisponible = producto.stock_actual;
+
+                  if (producto.producto_ingredientes?.length > 0) {
+                    const limitesIngredientes = producto.producto_ingredientes.map(pi => {
+                      // Si es agua/gas (ilimitado), no restringe
+                      if (pi.ingredientes?.es_ilimitado) return Infinity;
+                      
+                      const stockIng = pi.ingredientes?.stock_actual || 0;
+                      return Math.floor(stockIng / (pi.cantidad_necesaria || 1));
+                    });
                     
-                  // Verificación profesional de inventario
-                  const sinStock = producto.stock_actual <= 0;
+                    // El stock real es el mínimo entre lo que ya hay hecho y lo que se puede cocinar
+                    stockDisponible = Math.min(stockDisponible, ...limitesIngredientes);
+                  }
+
+                  // 2. Ahora 'sinStock' es verdadero si faltan ingredientes O producto
+                  const sinStock = stockDisponible <= 0;
 
                   return (
                     <div 
                       key={producto.id} 
-                      className={`group bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col ${sinStock ? 'opacity-75 grayscale-[0.5]' : 'hover:border-biskoto/50'}`}
+                      className={`group bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col ${sinStock ? 'opacity-75 grayscale-[0.5]' : 'hover:border-biskoto/50 dark:hover:border-indigo-400'}`}                      
                     >
                       {/* Imagen del Producto */}
-                      <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-900">
+                      <Link 
+                        to={`/producto/${producto.id}`}
+                        className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-900 block"
+                      >
                         <img 
                           src={imagenPrincipal} 
                           alt={producto.nombre} 
@@ -177,11 +197,12 @@ const HomePage = () => {
                             </span>
                           </div>
                         )}
-                      </div>
+                      </Link>
+
 
                       {/* Información y Acciones */}
                       <div className="p-4 flex flex-col flex-grow">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-biskoto transition-colors">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-biskoto dark:group-hover:text-indigo-400 transition-colors">
                           {producto.nombre}
                         </h3>
                         
@@ -201,21 +222,23 @@ const HomePage = () => {
                             ₡{parseFloat(producto.precio).toLocaleString('es-CR')}
                           </span>
                           
-                          {/* Botón de Acción Condicional */}
-                          <button 
-                            disabled={sinStock}
-                            className={`p-2 rounded-lg transition-colors shadow-sm active:scale-95 flex items-center gap-2 ${
-                              sinStock 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500' // Estilo deshabilitado
-                                : 'bg-biskoto text-white hover:bg-biskoto-600' // Estilo activo
-                            }`}
-                            title={sinStock ? "No disponible temporalmente" : "Agregar al carrito"}
-                            onClick={() => !sinStock && console.log(`Agregar ${producto.id}`)}
-                          >
-                            <ShoppingCart size={20} />
-                            {/* Opcional: Texto en botón */}
-                            {/* <span className="text-sm font-medium hidden sm:inline">{sinStock ? 'Sin Stock' : 'Agregar'}</span> */}
-                          </button>
+                        {/* Botón de Acción: Cambia según disponibilidad */}
+                        <button 
+                          onClick={() => navigate(`/producto/${producto.id}`)}
+                          className={`p-2 rounded-lg transition-colors shadow-sm active:scale-95 flex items-center gap-2 ${
+                            sinStock 
+                              ? 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-gray-300' 
+                              : 'bg-biskoto text-white hover:bg-biskoto-600'
+                          }`}
+                          title={sinStock ? "Ver detalles del producto" : "Añadir al pedido"}
+                        >
+                          {/* Si no hay stock mostramos un Ojo, si hay stock un Carrito */}
+                          {sinStock ? <Eye size={20} /> : <ShoppingCart size={20} />}
+                          
+                          <span className="text-sm font-bold hidden sm:inline">
+                            {sinStock ? 'Ver detalle' : 'Pedir'}
+                          </span>
+                        </button>
                         </div>
                       </div>
                     </div>

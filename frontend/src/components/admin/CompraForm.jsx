@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Save, AlertCircle, Truck, Info, 
-  Plus, Loader2, Trash2, ClipboardList, ChevronDown, Eye
+  Plus, Loader2, Trash2, ClipboardList, Eye, X
 } from 'lucide-react';
 
 import { getProveedores } from '../../api/proveedorService';
 import { getIngredientes } from '../../api/ingredienteService';
+import SearchableSelect from '../../components/ui/SearchableSelect';
 
 /**
  * Formulario de Gestión de Compras e Inventario.
@@ -36,6 +37,8 @@ const CompraForm = ({
   
   const [fetchingData, setFetchingData] = useState(!isReadOnly);
   const [localError, setLocalError] = useState(null);
+
+  const [itemError, setItemError] = useState(null);
 
   const [selectedIngrediente, setSelectedIngrediente] = useState('');
   const [cantidad, setCantidad] = useState('');
@@ -115,9 +118,22 @@ const CompraForm = ({
   // Validación en tiempo real para habilitar la adición de ítems.
   const canAdd = selectedIngrediente && cantidad && Number(cantidad) > 0 && precioUnitario && Number(precioUnitario) > 0;
 
+  // NUEVO: Variable calculada para saber si el ingrediente seleccionado exige enteros
+  // Esto se recalcula cada vez que cambias el 'selectedIngrediente'
+  const ingSeleccionadoObj = ingredientesDb.find(i => i.id === Number(selectedIngrediente));
+  const requiereEnteros = ingSeleccionadoObj 
+    ? ['u', 'doc'].includes(ingSeleccionadoObj.unidades_medida?.abreviatura?.toLowerCase())
+    : false;
+
   const agregarItem = () => {
     if (!canAdd) return;
     
+    // NUEVA VALIDACIÓN
+    if (requiereEnteros && !Number.isInteger(Number(cantidad))) {
+      setItemError(`El ingrediente "${ingSeleccionadoObj.nombre}" se mide en unidades enteras, no acepta decimales.`);
+      return;
+    }
+
     const ingInfo = ingredientesDb.find(i => i.id === Number(selectedIngrediente));
     
     // Obtenemos nombre y abreviatura del catálogo cargado
@@ -133,6 +149,7 @@ const CompraForm = ({
       precio_unitario: Number(precioUnitario)
     }]);
     
+    setItemError(null);
     setLocalError(null);
     setSelectedIngrediente(''); setCantidad(''); setPrecioUnitario('');
   };
@@ -194,22 +211,26 @@ const CompraForm = ({
             <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2">
               <Truck size={18} className="text-biskoto" /> Proveedor Responsable
             </label>
-            <div className="relative">
-              <select 
-                disabled={isReadOnly}
-                value={formData.proveedor_id}
-                onChange={(e) => setFormData({...formData, proveedor_id: e.target.value})}
-                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3.5 appearance-none focus:ring-2 focus:ring-biskoto outline-none dark:text-white disabled:opacity-100 transition-all font-medium"
-              >
-                {isReadOnly ? <option>{initialData?.proveedores?.nombre}</option> : (
-                  <>
-                    <option value="">Seleccionar proveedor...</option>
-                    {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                  </>
-                )}
-              </select>
-              {!isReadOnly && <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />}
-            </div>
+            
+            {isReadOnly ? (
+              // MODO LECTURA: Input estático y limpio
+              <div className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-3 text-gray-700 dark:text-white font-medium opacity-80 cursor-not-allowed">
+                {initialData?.proveedores?.nombre || "Proveedor no disponible"}
+              </div>
+            ) : (
+              // MODO EDICIÓN: SearchableSelect con z-30
+              <div className="relative z-30">
+                <SearchableSelect 
+                  value={formData.proveedor_id}
+                  onChange={(val) => setFormData(prev => ({ ...prev, proveedor_id: val }))}
+                  placeholder="Buscar proveedor..."
+                  options={proveedores.map(p => ({
+                    value: p.id,
+                    label: p.nombre
+                  }))}
+                />
+              </div>
+            )}
           </div>
 
           <div className="bg-biskoto/5 dark:bg-white/5 p-6 rounded-2xl border border-biskoto/20 dark:border-white/10 flex flex-col justify-center items-center text-center shadow-inner">
@@ -226,27 +247,61 @@ const CompraForm = ({
             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-6">
               <Plus className="text-biskoto" size={18} /> Entrada de Insumos
             </h3>
-            <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-gray-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-12 gap-4 items-end shadow-sm">
-              <div className="md:col-span-5">
-                <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Ingrediente</label>
-                <div className="relative">
-                  <select 
-                    value={selectedIngrediente} onChange={(e) => setSelectedIngrediente(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-sm dark:text-white focus:ring-2 focus:ring-biskoto outline-none appearance-none"
+
+            {/* Mensaje de error local con soporte para modo oscuro y botón de cierre */}
+            <AnimatePresence>
+              {itemError && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-xl flex items-center justify-between text-red-700 dark:text-red-400 overflow-hidden shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertCircle size={18} className="flex-shrink-0" />
+                    <span className="text-xs font-bold tracking-tight">{itemError}</span>
+                  </div>
+                  
+                  {/* Botón para cerrar el error manualmente */}
+                  <button 
+                    type="button"
+                    onClick={() => setItemError(null)}
+                    className="p-1 hover:bg-red-100 dark:hover:bg-red-800/40 rounded-full transition-colors"
+                    title="Cerrar aviso"
                   >
-                    <option value="">Elegir insumo...</option>
-                    {ingredientesDb.map(ing => (
-                      <option key={ing.id} value={ing.id}>{ing.nombre} ({ing.unidades_medida?.abreviatura || 'u'})</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                </div>
+                    <X size={16} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-gray-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-12 gap-4 items-end shadow-sm">
+              <div className="md:col-span-5 relative z-20">
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Ingrediente</label>
+                <SearchableSelect 
+                  value={selectedIngrediente}
+                  onChange={(val) => setSelectedIngrediente(val)}
+                  placeholder="Elegir insumo..."
+                  
+                  // CAMBIO PARA COMPRAS (Blanco y Pequeño)
+                  bgClasses="bg-white dark:bg-slate-800"
+                  pyClasses="py-2.5"
+                  
+                  options={ingredientesDb
+                    .filter(ing => !ing.es_ilimitado) // <--- Solo mostramos los que requieren compra
+                    .map(ing => ({
+                      value: ing.id,
+                      label: ing.nombre,
+                      subLabel: ing.unidades_medida?.abreviatura || 'u'
+                    }))
+                  }
+                />
               </div>
               <div className="md:col-span-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Cantidad</label>
-                <input type="number" placeholder="0.00" value={cantidad} onChange={(e) => setCantidad(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-sm dark:text-white focus:ring-2 focus:ring-biskoto outline-none"
-                />
+                  <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Cantidad</label>
+                  <input type="number" placeholder="0.00" value={cantidad} step={requiereEnteros ? "1" : "0.01"} min="0" onChange={(e) => {setCantidad(e.target.value); if (itemError) setItemError(null); }}
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-sm dark:text-white focus:ring-2 focus:ring-biskoto outline-none"
+                  />
               </div>
               <div className="md:col-span-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 ml-1 block">Precio U.</label>

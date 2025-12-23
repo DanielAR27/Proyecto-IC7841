@@ -201,23 +201,26 @@ const IngredientesPage = () => {
                             {ing.unidades_medida?.nombre} ({ing.unidades_medida?.abreviatura})
                           </td>
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
-                            <StatusBadge 
-                              variant={
-                                ing.stock_actual < 0 
-                                  ? 'error'   // Rojo: Error de sistema
-                                  : ing.stock_actual === 0 
-                                    ? 'warning' // Naranja/Amarillo: ¡Agotado!
-                                    : ing.stock_actual <= 5 
-                                      ? 'info'    // Azul: Reponer pronto
-                                      : 'success' // Verde: Todo bien
-                              }
-                            >
-                              <span className="flex items-center justify-center gap-1">
-                                {/* Icono de advertencia solo si es negativo para diferenciar error de falta de stock */}
-                                {ing.stock_actual < 0 && <AlertTriangle className="h-3 w-3 animate-pulse" />}
-                                {ing.stock_actual}
+                            {ing.es_ilimitado ? (
+                              // CASO ILIMITADO: Badge azul o neutro con símbolo infinito
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                <span className="text-lg leading-none mr-1">∞</span> Ilimitado
                               </span>
-                            </StatusBadge>
+                            ) : (
+                              // CASO NORMAL: Lógica de StatusBadge existente
+                              <StatusBadge 
+                                variant={
+                                  ing.stock_actual < 0 ? 'error' : 
+                                  ing.stock_actual === 0 ? 'warning' : 
+                                  ing.stock_actual <= 5 ? 'info' : 'success'
+                                }
+                              >
+                                <span className="flex items-center justify-center gap-1">
+                                  {ing.stock_actual < 0 && <AlertTriangle className="h-3 w-3 animate-pulse" />}
+                                  {ing.stock_actual}
+                                </span>
+                              </StatusBadge>
+                            )}
                           </td>
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <TableActions 
