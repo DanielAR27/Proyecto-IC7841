@@ -1,97 +1,217 @@
-# DulceApp - Sistema de Gestión de E-commerce
+# Documentación Técnica del Proyecto Biskoto
 
-**Nota: Esta documentación está incompleta, léase bajo su propio riesgo**
+## 1. Visión General del Proyecto
 
+El Proyecto Biskoto es una solución integral de comercio electrónico diseñada para la gestión y venta de productos de repostería artesanal. El sistema se compone de una arquitectura cliente-servidor que separa la lógica de negocio y la gestión de datos (Backend) de la interfaz de usuario (Frontend).
 
-Este proyecto consiste en una aplicación web para la administración y venta de productos de confitería. La aplicación cuenta con un panel administrativo robusto, gestión de perfiles de usuario y una interfaz adaptable con soporte nativo para modo oscuro.
+El objetivo principal es administrar el inventario, procesar compras, gestionar ingredientes y ofrecer un catálogo público interactivo, asegurando la integridad de los datos mediante validaciones de stock en tiempo real.
 
-## Estado Actual del Proyecto
+## 2. Arquitectura Tecnológica
 
-El sistema se encuentra en desarrollo activo. Actualmente, cuenta con los módulos de autenticación, gestión de perfil de usuario y el módulo administrativo completo para la gestión de categorías (CRUD).
+El sistema utiliza el siguiente stack tecnológico:
 
-### Funcionalidades Implementadas
+**Base de Datos y Almacenamiento:** Supabase (PostgreSQL) para datos relacionales y Supabase Storage para el alojamiento de imágenes.
 
-**1. Autenticación y Seguridad**
-* Inicio de sesión y registro de usuarios.
-* Protección de rutas mediante `AuthContext` (Rutas privadas y públicas).
-* Persistencia de sesión mediante Tokens.
-* Redirección automática basada en roles y estado de autenticación.
+**Backend:** Node.js con Express.
 
-**2. Experiencia de Usuario (UX/UI)**
-* **Sistema de Temas:** Soporte completo para Modo Claro y Oscuro. Incluye detección automática de preferencia del sistema y persistencia manual mediante `localStorage`.
-* **Interfaz Reactiva:** Diseño adaptativo utilizando Tailwind CSS v4.
-* **Feedback Visual:** Notificaciones tipo "Toast" y Banners para confirmación de acciones.
-* **Modales Personalizados:** Ventanas de confirmación para acciones destructivas (Eliminación).
-* **Manejo de Estados de Carga:** Indicadores visuales (spinners) durante peticiones asíncronas.
+**Frontend:** React.js con Vite.
 
-**3. Módulo de Usuario**
-* Visualización y edición de perfil.
-* Validaciones de formulario en el cliente (ej. formato de teléfono).
-* Corrección visual para el autocompletado del navegador (Autofill styling).
+**Estilos:** Tailwind CSS.
 
-**4. Módulo de Administración (Categorías)**
-* Listado de categorías con búsqueda en tiempo real (Client-side filtering).
-* Creación de categorías con validación de campos requeridos.
-* Edición de categorías con detección de conflictos (nombres duplicados).
-* Eliminación lógica o física de categorías (según configuración de BD).
-* Arquitectura basada en componentes reutilizables (`CategoriaForm`).
+**Gestión de Estado:** React Context API.
 
-## Tecnologías Utilizadas
+## 3. Estructura del Proyecto
 
-**Frontend**
-* **React 18:** Biblioteca principal de interfaz.
-* **Vite:** Entorno de desarrollo y empaquetador.
-* **Tailwind CSS 4.0:** Framework de estilos utilitarios.
-* **React Router DOM:** Manejo de navegación y rutas.
-* **Axios:** Cliente HTTP para comunicación con el backend.
-* **Lucide React:** Biblioteca de iconos vectoriales.
-
-**Arquitectura de Frontend**
-* **Context API:** Gestión de estado global para Autenticación y Tema.
-* **Service Layer Pattern:** Abstracción de llamadas API en la carpeta `src/api/`.
-* **Component-Based:** Separación de lógica en componentes reutilizables (ej. `Navbar`, `CategoriaForm`).
-
-## Estructura del Proyecto
-
-```text
-backend/
-frontend/
-database/
-.gitignore
-README.md
+A continuación, se detalla la organización de directorios y archivos principales del código fuente:
+```
+Proyecto-IC7841/
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── supabase.js           # Configuración del cliente Supabase
+│   │   ├── controllers/
+│   │   │   ├── authController.js     # Lógica de autenticación
+│   │   │   ├── categoriaController.js
+│   │   │   ├── comprasController.js  # Procesamiento de transacciones
+│   │   │   ├── ingredienteController.js
+│   │   │   ├── productoController.js # Lógica de productos e inventario
+│   │   │   ├── proveedorController.js
+│   │   │   └── usuarioController.js
+│   │   ├── middleware/
+│   │   │   └── authMiddleware.js     # Protección de rutas
+│   │   ├── routes/                   # Definición de endpoints API
+│   │   │   ├── authRoutes.js
+│   │   │   ├── categoriasRoutes.js
+│   │   │   ├── comprasRoutes.js
+│   │   │   ├── ingredientesRoutes.js
+│   │   │   ├── productosRoutes.js
+│   │   │   └── ...
+│   │   └── app.js                    # Configuración de la aplicación Express
+│   ├── index.js                      # Punto de entrada del servidor
+│   └── package.json
+│
+├── database/                         # Scripts SQL para la base de datos
+│   ├── schema.sql                    # Definición de tablas
+│   ├── seed.sql                      # Datos iniciales
+│   ├── auth_trigger.sql              # Triggers de autenticación
+│   └── ...
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── api/                      # Servicios de comunicación con Backend
+│   │   │   ├── axiosConfig.js
+│   │   │   ├── productoService.js
+│   │   │   ├── authService.js
+│   │   │   └── ...
+│   │   ├── assets/                   # Recursos estáticos (imágenes, logos)
+│   │   ├── components/               # Componentes reutilizables de UI
+│   │   │   ├── navbar/
+│   │   │   ├── ui/
+│   │   │   ├── admin/                # Formularios administrativos
+│   │   │   ├── CartDrawer.jsx        # Carrito lateral
+│   │   │   ├── Navbar.jsx
+│   │   │   └── ...
+│   │   ├── context/                  # Gestión de estado global
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── CartContext.jsx
+│   │   ├── pages/                    # Vistas de la aplicación
+│   │   │   ├── admin/                # Vistas del panel de administración
+│   │   │   ├── auth/                 # Login, Registro, Recuperación
+│   │   │   ├── home/                 # Página principal
+│   │   │   ├── shop/                 # Detalle de producto
+│   │   │   └── user/                 # Perfil de usuario
+│   │   ├── App.jsx                   # Enrutamiento principal
+│   │   └── main.jsx                  # Punto de entrada React
+│   ├── index.html
+│   ├── tailwind.config.js
+│   └── vite.config.js
+└── README.md
 ```
 
-## Configuración e Instalación
+## 4. Guía de Instalación y Ejecución
 
-### 1. Clonar el repositorio
+Para desplegar el proyecto en un entorno local, siga los siguientes pasos:
 
+### Prerrequisitos
+
+- Node.js (versión 16 o superior).
+- Cuenta activa en Supabase.
+- Git instalado.
+
+### Configuración del Backend
+
+Navegue al directorio del servidor:
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd Proyecto-IC7841
+cd backend
 ```
-### 2. Instalar depedencias
 
+Instale las dependencias necesarias:
 ```bash
 npm install
 ```
 
-### 3. Configuración de Variables de Entorno Crear un archivo .env en frontend y otro para backend
-
-### 4. Correr el backend
-
-```bash
-cd backend/
-npm run dev
+Cree un archivo `.env` en la raíz de backend con las siguientes variables:
 ```
-### 5. Correr el frontend
-
-```bash
-cd frontend/
-npm run dev
+PORT=3000
+SUPABASE_URL=su_url_de_supabase
+SUPABASE_KEY=su_anon_key_de_supabase
+SUPABASE_SERVICE_ROLE_KEY=su_service_role_key
 ```
 
-## Convenciones de Código
-- Estilos: Se utiliza Tailwind CSS con soporte para darkMode: 'class'.
-- Imports: Se priorizan las rutas relativas claras.
-- Componentes: Uso de componentes funcionales y Hooks.
-- Manejo de Errores: Los servicios API deben manejar errores HTTP estándar (400, 401, 409, 500) y reflejarlos en la UI.
+Inicie el servidor:
+```bash
+npm start
+```
+
+### Configuración del Frontend
+
+Navegue al directorio del cliente:
+```bash
+cd frontend
+```
+
+Instale las dependencias necesarias:
+```bash
+npm install
+```
+
+Cree un archivo `.env` en la raíz de frontend para la conexión con el API:
+```
+VITE_API_URL=http://localhost:3000/api
+VITE_SUPABASE_URL=su_url_de_supabase
+VITE_SUPABASE_ANON_KEY=su_anon_key_de_supabase
+```
+
+Ejecute la aplicación en modo desarrollo:
+```bash
+npm run dev
+```
+
+## 5. Módulos y Funcionalidades Actuales
+
+- **Catálogo de Productos:** Visualización de productos con imágenes, precios y descripciones. Detección automática de disponibilidad basada en inventario.
+- **Gestión de Carrito:** Persistencia de datos local, validación de stock en tiempo real contra el servidor y cálculo de totales.
+- **Panel Administrativo:** CRUD completo para Productos, Ingredientes, Proveedores y Categorías.
+- **Gestión de Inventario:** Control de stock de ingredientes y productos terminados.
+- **Autenticación:** Sistema de registro e inicio de sesión seguro, con roles de usuario y administrador.
+
+## 6. Hoja de Ruta: Mejoras y Funcionalidades Pendientes
+
+Para optimizar el funcionamiento del Proyecto Biskoto y mejorar la experiencia de usuario, se han identificado las siguientes áreas críticas de desarrollo:
+
+
+**Nota:** Tanto la parte 6.1 como 6.2 son detalles a arreglar, si queda tiempo serán
+resueltos por Daniel, la parte 6.3 en adelante le toca a Luis
+
+### 6.1. Optimización de Navegación y Feedback (UX)
+
+Actualmente, al realizar acciones que conllevan redireccionamiento o actualizaciones de estado (como eliminar un registro), la posición del scroll se mantiene estática.
+
+**Requerimiento:** Implementar `window.scrollTo(0, 0)` en las transiciones de página y tras la ejecución de notificaciones tipo "Toast" para asegurar que el usuario visualice los mensajes de confirmación o error en la parte superior de la interfaz.
+
+### 6.2. Refinamiento en el Procesamiento de Compras
+
+Existe una inconsistencia lógica en el manejo del carrito cuando el inventario fluctúa.
+
+**Requerimiento A:** Implementar una limpieza automática en el paso previo al "Checkout". Los ítems que, tras la validación, resulten con una cantidad de 0 debido a falta de stock, deben ser ocultados visualmente de la lista de confirmación final o eliminados automáticamente del carrito para evitar confusión.
+
+**Requerimiento B:** Manejar casos de borde donde un producto previamente agotado recupera stock. El sistema debe permitir la actualización dinámica de estas cantidades sin requerir que el usuario elimine y vuelva a agregar el ítem manualmente.
+
+---
+
+**Nota:** A partir de aquí, esta parte le toca a Luis, es recomendable comenzar con la 6.4
+
+### 6.3. Módulo de Gestión de Pedidos (Cliente Final)
+
+Es fundamental establecer una distinción arquitectónica clara entre el módulo de "Compras" (adquisición interna de insumos a proveedores) y el módulo de "Pedidos" (transacciones de venta realizadas por los usuarios finales de la aplicación).
+
+**Requerimiento:** Implementar un sistema de administración de pedidos de venta ("Sales Orders") que permita al personal operativo gestionar el flujo de despacho sin alterar la integridad financiera de la transacción.
+
+- **Inmutabilidad del pedido:** Una vez confirmada la orden por el cliente, los ítems y precios pactados no deben ser modificables, garantizando la trazabilidad histórica y la coherencia contable.
+
+- **Gestión de Estados:** Gestión de Estados: Implementar una máquina de estados finitos para el ciclo de vida del pedido (ej. "Pendiente de Pago", "Confirmado", "En Producción", "Listo para Retiro", "Entregado", "Cancelado").
+
+- **Visualización:** Visualización: Dashboard para el seguimiento de pedidos activos, con filtros por fecha, cliente y estado.
+
+### 6.4. Procesamiento de Pagos y Checkout (Funcionalidad Crítica)
+
+El cierre del ciclo de venta requiere la implementación de una pasarela de pagos robusta y un sistema de incentivos comerciales.
+
+**Gestión de Cupones de Descuento:** 
+
+- Desarrollar la lógica de validación para códigos promocionales (cupones) en el carrito de compras.
+
+- Soportar diferentes tipos de descuento (porcentaje, monto fijo) y reglas de aplicación (fecha de expiración, monto mínimo de compra, límite de usos).
+
+**Integración con Pasarela de Pagos:** 
+
+- Implementar un servicio de procesamiento de pagos seguro (Payment Gateway Integration) mediante proveedores estándar de la industria como Stripe o equivalentes locales.
+
+- El sistema debe manejar la confirmación asíncrona del pago (Webhooks) para actualizar automáticamente el estado del pedido y descontar el inventario final de productos terminados.
+
+- Garantizar el cumplimiento de estándares de seguridad (PCI-DSS) delegando el manejo de datos sensibles de tarjetas a la pasarela seleccionada
+
+---
+
+*Documento generado para uso interno del equipo de desarrollo del Proyecto Biskoto.*
