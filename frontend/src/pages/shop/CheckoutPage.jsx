@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CreditCard,
   ShoppingBag,
@@ -22,6 +22,7 @@ import {
   crearPedido,
   confirmarPago,
   cancelarPedido,
+  getPedido,
 } from "../../api/pedidoService";
 import Navbar from "../../components/Navbar";
 
@@ -31,11 +32,13 @@ import Navbar from "../../components/Navbar";
  */
 const CheckoutPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const pedidoIdFromURL = searchParams.get("pedidoId");
   const { user } = useAuth();
   const { cart, totalPrice, clearCart } = useCart();
 
   // Estados del flujo de checkout
-  const [paso, setPaso] = useState(1); // 1: Datos, 2: SINPE, 3: Confirmación
+  const [paso, setPaso] = useState(pedidoIdFromURL ? 2 : 1); // Si viene pedidoId, saltar a paso 2
 
   // Estados de datos del pedido
   const [datosEntrega, setDatosEntrega] = useState({
@@ -60,6 +63,47 @@ const CheckoutPage = () => {
   const [pedidoCreado, setPedidoCreado] = useState(null);
   const [archivoComprobante, setArchivoComprobante] = useState(null);
 
+  /**
+   * Cargar pedido existente si viene pedidoId en la URL
+   */
+  useEffect(() => {
+    const cargarPedidoExistente = async () => {
+      if (pedidoIdFromURL) {
+        try {
+          const pedido = await getPedido(pedidoIdFromURL);
+
+          // Verificar que el pedido esté en estado "Pendiente de Pago"
+          if (pedido.estado_id !== 1) {
+            setErrorCheckout("Este pedido ya no está pendiente de pago.");
+            navigate("/mis-pedidos");
+            return;
+          }
+
+          // Configurar pedido creado para mostrar pantalla de SINPE
+          setPedidoCreado({
+            id: pedido.id,
+            total: pedido.total,
+            numeroReferencia: `BISK-${pedido.id.toString().padStart(6, "0")}`,
+            datosPago: {
+              telefono: import.meta.env.VITE_SINPE_TELEFONO || "8888-8888",
+              titular:
+                import.meta.env.VITE_SINPE_TITULAR || "Biskoto Repostería",
+              cedula: import.meta.env.VITE_SINPE_CEDULA || "1-2345-6789",
+              monto: pedido.total,
+            },
+          });
+
+          setPaso(2); // Ir directo al paso de pago
+        } catch (error) {
+          console.error("Error cargando pedido:", error);
+          setErrorCheckout("No se pudo cargar el pedido.");
+          navigate("/mis-pedidos");
+        }
+      }
+    };
+
+    cargarPedidoExistente();
+  }, [pedidoIdFromURL, navigate]);
   // Cálculos de precios
   const subtotal = totalPrice;
   const descuento = cuponAplicado
@@ -69,10 +113,10 @@ const CheckoutPage = () => {
 
   // Validación inicial: si no hay items, redirigir
   useEffect(() => {
-    if (cart.length === 0 && !pedidoCreado) {
-      navigate("/shop");
+    if (cart.length === 0 && !pedidoCreado && !pedidoIdFromURL) {
+      navigate("/home");
     }
-  }, [cart, pedidoCreado, navigate]);
+  }, [cart, pedidoCreado, pedidoIdFromURL, navigate]);
 
   /**
    * Validar cupón

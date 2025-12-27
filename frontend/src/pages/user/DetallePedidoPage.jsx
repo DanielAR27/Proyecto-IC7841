@@ -16,7 +16,6 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-
 import { getPedido } from "../../api/pedidoService";
 import Navbar from "../../components/Navbar";
 
@@ -178,6 +177,34 @@ const DetallePedidoPage = () => {
               {estado}
             </div>
           </div>
+
+          {/* 👇 AGREGAR ESTO AQUÍ */}
+          {pedido.estado_id === 1 && (
+            <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+              <div className="flex items-start gap-3">
+                <AlertCircle
+                  className="text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5"
+                  size={20}
+                />
+                <div className="flex-1">
+                  <h3 className="font-bold text-yellow-900 dark:text-yellow-200 mb-1">
+                    Pago Pendiente
+                  </h3>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                    Este pedido está esperando la confirmación del pago.
+                    Completá el proceso para confirmar tu pedido.
+                  </p>
+                  <button
+                    onClick={() => navigate(`/checkout?pedidoId=${pedido.id}`)}
+                    className="px-6 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-bold transition-all flex items-center gap-2 shadow-md"
+                  >
+                    <CreditCard size={18} />
+                    Completar Pago
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
