@@ -1,12 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const storageController = require('../controllers/storageController');
-const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
+const storageController = require("../controllers/storageController");
+const { verifyToken } = require("../middleware/authMiddleware");
 
 /**
- * Solo administradores autenticados pueden pedir firmas de subida.
- * Esto evita que cualquier usuario externo llene tu storage.
+ * Generar URL firmada para subir archivos.
+ * Solo usuarios autenticados pueden pedir firmas de subida.
  */
-router.post('/sign-upload', verifyToken, isAdmin, storageController.generarUrlSubida);
+router.post("/signed-upload", verifyToken, storageController.generarUrlSubida);
 
 module.exports = router;
