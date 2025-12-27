@@ -18,7 +18,11 @@ import {
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { validarCupon } from "../../api/cuponService";
-import { crearPedido, confirmarPago } from "../../api/pedidoService";
+import {
+  crearPedido,
+  confirmarPago,
+  cancelarPedido,
+} from "../../api/pedidoService";
 import Navbar from "../../components/Navbar";
 
 /**
@@ -49,6 +53,7 @@ const CheckoutPage = () => {
   // Estados de procesamiento
   const [creandoPedido, setCreandoPedido] = useState(false);
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const [errorCheckout, setErrorCheckout] = useState("");
 
   // Estados de pedido creado
@@ -255,6 +260,34 @@ const CheckoutPage = () => {
       );
     } finally {
       setSubiendoComprobante(false);
+    }
+  };
+
+  /**
+   * Cancelar el pedido actual
+   */
+  const handleCancelarPedido = async () => {
+    // Confirmación
+    if (!window.confirm("¿Estás seguro que querés cancelar este pedido?")) {
+      return;
+    }
+
+    setCancelando(true);
+    setErrorCheckout("");
+
+    try {
+      await cancelarPedido(pedidoCreado.id);
+
+      // Limpiar carrito y redirigir
+      clearCart();
+      navigate("/home");
+    } catch (error) {
+      console.error("Error al cancelar pedido:", error);
+      setErrorCheckout(
+        "Error al cancelar el pedido. Por favor intenta nuevamente."
+      );
+    } finally {
+      setCancelando(false);
     }
   };
 
@@ -544,6 +577,23 @@ const CheckoutPage = () => {
                         <>
                           <CheckCircle size={20} />
                           Confirmar Pago
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelarPedido}
+                      disabled={cancelando || subiendoComprobante}
+                      className="w-full mt-4 py-3 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:bg-gray-100 text-red-600 dark:text-red-400 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                      {cancelando ? (
+                        <>
+                          <Loader2 className="animate-spin" size={18} />
+                          Cancelando...
+                        </>
+                      ) : (
+                        <>
+                          <X size={18} />
+                          Cancelar Pedido
                         </>
                       )}
                     </button>

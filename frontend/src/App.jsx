@@ -19,6 +19,8 @@ import HomePage from "./pages/home/HomePage";
 import ProfilePage from "./pages/user/ProfilePage";
 import ProductDetailPage from "./pages/shop/ProductDetailPage";
 import CheckoutPage from "./pages/shop/CheckoutPage";
+import MisPedidosPage from "./pages/user/MisPedidosPage";
+import DetallePedidoPage from "./pages/user/DetallePedidoPage";
 
 // Páginas de Administración
 
@@ -98,11 +100,9 @@ function App() {
         />
         <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
         <Route path="/actualizar-password" element={<UpdatePasswordPage />} />
-
         {/* Ruta Pública Principal (Catálogo visible para todos) */}
         <Route path="/home" element={<HomePage />} />
         <Route path="/producto/:id" element={<ProductDetailPage />} />
-
         {/* Rutas Privadas de Usuario (Requieren Login) */}
         <Route
           path="/perfil"
@@ -120,7 +120,38 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mis-pedidos"
+          element={
+            <ProtectedRoute>
+              <MisPedidosPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pedido/:id"
+          element={
+            <ProtectedRoute>
+              <DetallePedidoPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Rutas de Administración Protegidas por AdminRoute */}
         <Route element={<AdminRoute />}>
           <Route path="/admin/categorias" element={<CategoriasPage />} />
@@ -180,7 +211,6 @@ function App() {
           <Route path="/admin/compras/nueva" element={<CrearCompraPage />} />
           <Route path="/admin/compras/:id" element={<ConsultarCompraPage />} />
         </Route>
-
         {/* Gestión de redirecciones predeterminadas */}
         <Route path="/" element={<Navigate to="/home" />} />
         <Route path="*" element={<Navigate to="/home" />} />
